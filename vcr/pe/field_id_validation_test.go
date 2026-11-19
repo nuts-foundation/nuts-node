@@ -70,6 +70,14 @@ func TestValidateFieldIDs(t *testing.T) {
 			)},
 		},
 		{
+			name: "input descriptors without constraints and empty input descriptors",
+			definitions: []PresentationDefinition{definition("pd",
+				`{"id": "d1"}`,
+				`null`,
+				descriptor("d2", `{"id": "a", "path": ["$.a"]}`),
+			)},
+		},
+		{
 			name: "ids used in one input descriptor only",
 			definitions: []PresentationDefinition{definition("pd",
 				descriptor("d1", `{"id": "a", "path": ["$.a"], "filter": {"type": "string"}}`),
@@ -132,6 +140,23 @@ func TestValidateFieldIDs(t *testing.T) {
 			)},
 			expectedErrors: []string{
 				"field id 'a' is used on 2 fields of input descriptor 'd1' (presentation definition 'pd'), it must be unique within an input descriptor",
+			},
+		},
+		{
+			// An id used twice within one input descriptor is still compared with the other input descriptors.
+			name: "id used twice within one input descriptor and shared with another descriptor: both violations",
+			definitions: []PresentationDefinition{definition("pd",
+				descriptor("d1",
+					`{"id": "a", "path": ["$.a"], "filter": {"type": "string", "const": "x"}}`,
+					`{"id": "a", "path": ["$.b"], "filter": {"type": "string", "const": "y"}}`,
+				),
+				descriptor("d2", `{"id": "a", "path": ["$.a"], "filter": {"type": "string", "const": "x"}}`),
+			)},
+			expectedErrors: []string{
+				"field id 'a' is used on 2 fields of input descriptor 'd1' (presentation definition 'pd'), it must be unique within an input descriptor",
+				"field id 'a' is used in input descriptor 'd1' (presentation definition 'pd'), input descriptor 'd2' (presentation definition 'pd'), " +
+					"with conflicting filter consts: 'x' in input descriptor 'd1' (presentation definition 'pd'), 'y' in input descriptor 'd1' (presentation definition 'pd'), " +
+					"'x' in input descriptor 'd2' (presentation definition 'pd')",
 			},
 		},
 		{
