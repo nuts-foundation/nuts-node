@@ -279,6 +279,27 @@ func TestRequestServiceAccessToken_TwoVP_SharedFieldIDs(t *testing.T) {
 		assert.ErrorContains(t, err, "ura")
 		assert.Nil(t, ctx.tokenRequest)
 	})
+	t.Run("a value of a credential a pick rule leaves out of the organization VP is not carried over", func(t *testing.T) {
+		// Profile "two-vp-integration-pick": the organization PD picks one of two input descriptors; only the second
+		// (the registration credential) declares "ura". The wallet fulfills both, the pick rule presents the first.
+		// Only values of the credentials in the organization VP are carried over, so the registration's ura (1) does
+		// not select the service provider's delegation: its first delegation is used.
+		const pickScope = "two-vp-integration-pick"
+		registration := newCredential("urn:registration:a", "OrganizationRegistrationCredential",
+			`{"id": "did:test:organization", "ura": "1"}`)
+		ctx := setup(t,
+			[]vc.VerifiableCredential{organizationA, registration},
+			[]vc.VerifiableCredential{delegation("urn:delegation:b", "2", "nurse"), delegation("urn:delegation:a", "1", "nurse")},
+			true)
+		serviceProviderSubject := serviceProviderSubjectID
+
+		_, err := ctx.client.RequestServiceAccessToken(auditContext, "", organizationSubjectID, ctx.verifierURL.String(), pickScope, false, nil, nil, &serviceProviderSubject)
+
+		require.NoError(t, err)
+		require.NotNil(t, ctx.tokenRequest)
+		assert.Equal(t, []string{"urn:organization:a"}, credentialIDs(t, ctx.tokenRequest.Get(oauth.AssertionParam)))
+		assert.Equal(t, []string{"urn:delegation:b"}, credentialIDs(t, ctx.tokenRequest.Get(oauth.ClientAssertionParam)))
+	})
 	t.Run("a pinned value leaving credentials that differ on another id fails with multiple credentials naming the input descriptor", func(t *testing.T) {
 		// The caller pins the organization; both delegations of that organization match the service_provider PD, but
 		// they differ on "role". The node cannot choose between them for the caller.
