@@ -611,10 +611,11 @@ txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
 
 func Test_matchCredential(t *testing.T) {
 	t.Run("no constraints is a match", func(t *testing.T) {
-		match, err := matchCredential(InputDescriptor{}, vc.VerifiableCredential{})
+		match, values, err := matchCredential(InputDescriptor{}, vc.VerifiableCredential{})
 
 		require.NoError(t, err)
 		assert.True(t, match)
+		assert.Empty(t, values)
 	})
 }
 

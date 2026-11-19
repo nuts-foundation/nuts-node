@@ -1,0 +1,575 @@
+/*
+ * Copyright (C) 2026 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package pe
+
+import (
+	"strings"
+	"testing"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// selectionCredential returns a JSON-LD credential with the given id and credential subject.
+func selectionCredential(id string, subject map[string]any) vc.VerifiableCredential {
+	credentialID := ssi.MustParseURI(id)
+	return credentialToJSONLD(vc.VerifiableCredential{ID: &credentialID, CredentialSubject: []map[string]any{subject}})
+}
+
+// selectionDescriptor returns an input descriptor that matches credentials whose credentialSubject.kind equals kind,
+// with the given extra fields.
+func selectionDescriptor(id string, kind string, fields ...Field) *InputDescriptor {
+	kindField := Field{Path: []string{"$.credentialSubject.kind"}, Filter: &Filter{Type: "string", Const: to.Ptr(kind)}}
+	return &InputDescriptor{Id: id, Constraints: &Constraints{Fields: append([]Field{kindField}, fields...)}}
+}
+
+// idField returns a field with the given id on credentialSubject.<property>.
+func idField(id string, property string) Field {
+	return Field{Id: to.Ptr(id), Path: []string{"$.credentialSubject." + property}}
+}
+
+// optionalIDField returns an optional field with the given id on credentialSubject.<property>.
+func optionalIDField(id string, property string) Field {
+	field := idField(id, property)
+	field.Optional = to.Ptr(true)
+	return field
+}
+
+// selectedCredentialIDs returns, per input descriptor id, the id of the selected credential ("" for none).
+func selectedCredentialIDs(candidates []Candidate) map[string]string {
+	result := make(map[string]string)
+	for _, candidate := range candidates {
+		result[candidate.InputDescriptor.Id] = ""
+		if candidate.VC != nil {
+			result[candidate.InputDescriptor.Id] = candidate.VC.ID.String()
+		}
+	}
+	return result
+}
+
+// permutations returns every order of the given input descriptors.
+func permutations(descriptors []*InputDescriptor) [][]*InputDescriptor {
+	if len(descriptors) <= 1 {
+		return [][]*InputDescriptor{descriptors}
+	}
+	var result [][]*InputDescriptor
+	for i := range descriptors {
+		rest := make([]*InputDescriptor, 0, len(descriptors)-1)
+		rest = append(rest, descriptors[:i]...)
+		rest = append(rest, descriptors[i+1:]...)
+		for _, permutation := range permutations(rest) {
+			result = append(result, append([]*InputDescriptor{descriptors[i]}, permutation...))
+		}
+	}
+	return result
+}
+
+func TestPresentationDefinition_selectCredentials(t *testing.T) {
+	// Providers and delegations: a delegation belongs to the provider with the same ura.
+	p1 := selectionCredential("P1", map[string]any{"kind": "provider", "ura": "1", "name": "Org A"})
+	p2 := selectionCredential("P2", map[string]any{"kind": "provider", "ura": "2", "name": "Org B"})
+	d1 := selectionCredential("D1", map[string]any{"kind": "delegation", "ura": "1", "employee": "e1"})
+	d1b := selectionCredential("D1b", map[string]any{"kind": "delegation", "ura": "1", "employee": "e2"})
+	d2 := selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"})
+	d2copy := selectionCredential("D2copy", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"})
+	d2b := selectionCredential("D2b", map[string]any{"kind": "delegation", "ura": "2", "employee": "e2"})
+	d3 := selectionCredential("D3", map[string]any{"kind": "delegation", "ura": "3", "employee": "e1"})
+	provider := selectionDescriptor("provider", "provider", idField("ura", "ura"), idField("org_name", "name"))
+	delegation := selectionDescriptor("delegation", "delegation", idField("ura", "ura"), idField("employee", "employee"))
+
+	type testCase struct {
+		name        string
+		descriptors []*InputDescriptor
+		vcs         []vc.VerifiableCredential
+		selection   map[string]string
+		// expected maps input descriptor id to the selected credential id ("" for none).
+		expected map[string]string
+		// expectedReasons maps input descriptor id to text the explanation of a missing credential must contain.
+		expectedReasons map[string][]string
+		// orderIndependent cases must give the same result for every order of the input descriptors.
+		orderIndependent bool
+	}
+	testCases := []testCase{
+		{
+			name: "without field ids every descriptor gets its first match",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("provider", "provider"),
+				selectionDescriptor("delegation", "delegation"),
+			},
+			vcs:              []vc.VerifiableCredential{p1, p2, d2, d1},
+			expected:         map[string]string{"provider": "P1", "delegation": "D2"},
+			orderIndependent: true,
+		},
+		{
+			name: "ids that are not shared, without selection: first match per descriptor",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("provider", "provider", idField("ura", "ura")),
+				selectionDescriptor("delegation", "delegation", idField("employee", "employee")),
+			},
+			vcs:      []vc.VerifiableCredential{p2, p1, d2b, d1},
+			expected: map[string]string{"provider": "P2", "delegation": "D2b"},
+		},
+		{
+			name:             "unpinned delegation follows the provider selected by a key only the provider declares",
+			descriptors:      []*InputDescriptor{provider, delegation},
+			vcs:              []vc.VerifiableCredential{p1, p2, d1, d2},
+			selection:        map[string]string{"org_name": "Org B"},
+			expected:         map[string]string{"provider": "P2", "delegation": "D2"},
+			orderIndependent: true,
+		},
+		{
+			name:             "unpinned delegation follows the only provider credential in the wallet",
+			descriptors:      []*InputDescriptor{provider, delegation},
+			vcs:              []vc.VerifiableCredential{p2, d1, d2},
+			expected:         map[string]string{"provider": "P2", "delegation": "D2"},
+			orderIndependent: true,
+		},
+		{
+			name:             "reverse direction: provider follows the delegation selected by a key only the delegation declares",
+			descriptors:      []*InputDescriptor{provider, delegation},
+			vcs:              []vc.VerifiableCredential{p1, p2, d1, d2b},
+			selection:        map[string]string{"employee": "e2"},
+			expected:         map[string]string{"provider": "P2", "delegation": "D2b"},
+			orderIndependent: true,
+		},
+		{
+			name: "chain resolved by repetition: A decides x, x leaves one value of y for B, y filters C",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("C", "c", idField("y", "y")),
+				selectionDescriptor("B", "b", idField("x", "x"), idField("y", "y")),
+				selectionDescriptor("A", "a", idField("x", "x")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("c1", map[string]any{"kind": "c", "y": "p"}),
+				selectionCredential("c2", map[string]any{"kind": "c", "y": "q"}),
+				selectionCredential("b1", map[string]any{"kind": "b", "x": "2", "y": "p"}),
+				selectionCredential("b2", map[string]any{"kind": "b", "x": "1", "y": "q"}),
+				selectionCredential("a1", map[string]any{"kind": "a", "x": "1"}),
+			},
+			expected:         map[string]string{"A": "a1", "B": "b2", "C": "c2"},
+			orderIndependent: true,
+		},
+		{
+			name:             "external key no descriptor declares is skipped",
+			descriptors:      []*InputDescriptor{provider, delegation},
+			vcs:              []vc.VerifiableCredential{p1, p2, d1, d2},
+			selection:        map[string]string{"patient_id": "123"},
+			expected:         map[string]string{"provider": "P1", "delegation": "D1"},
+			orderIndependent: true,
+		},
+		{
+			name:             "external key that no credential carries leaves the descriptor without credential",
+			descriptors:      []*InputDescriptor{provider},
+			vcs:              []vc.VerifiableCredential{p1, p2},
+			selection:        map[string]string{"ura": "9"},
+			expected:         map[string]string{"provider": ""},
+			expectedReasons:  map[string][]string{"provider": {"ura"}},
+			orderIndependent: true,
+		},
+		{
+			name:             "external key leaving several matches that agree on all declared ids: first is used",
+			descriptors:      []*InputDescriptor{delegation},
+			vcs:              []vc.VerifiableCredential{d1, d2, d2copy},
+			selection:        map[string]string{"ura": "2"},
+			expected:         map[string]string{"delegation": "D2"},
+			orderIndependent: true,
+		},
+		{
+			name:             "without external keys differing matches give the first match that fits",
+			descriptors:      []*InputDescriptor{provider, delegation},
+			vcs:              []vc.VerifiableCredential{p1, p2, d1, d1b},
+			expected:         map[string]string{"provider": "P1", "delegation": "D1"},
+			orderIndependent: true,
+		},
+		{
+			name:        "first-match binding: two unpinned descriptors sharing an id agree",
+			descriptors: []*InputDescriptor{provider, delegation},
+			// D2 is the first delegation in the wallet, but the provider (first open descriptor) takes P1.
+			vcs:      []vc.VerifiableCredential{p1, p2, d2, d1},
+			expected: map[string]string{"provider": "P1", "delegation": "D1"},
+		},
+		{
+			name:        "first-match binding: the pick of the first open descriptor filters the others, also in reverse PD order",
+			descriptors: []*InputDescriptor{delegation, provider},
+			// The delegation is now the first open descriptor and takes D2; the provider follows.
+			vcs:      []vc.VerifiableCredential{p1, p2, d2, d1},
+			expected: map[string]string{"provider": "P2", "delegation": "D2"},
+		},
+		{
+			name:        "first-match binding without partner: no backtracking, the other descriptor gets no credential",
+			descriptors: []*InputDescriptor{provider, delegation},
+			// The provider takes P1 (ura 1), for which there is no delegation.
+			vcs:             []vc.VerifiableCredential{p1, p2, d2, d2b, d3},
+			expected:        map[string]string{"provider": "P1", "delegation": ""},
+			expectedReasons: map[string][]string{"delegation": {"ura"}},
+		},
+		{
+			name: "descriptors decided in the same round that disagree: the first in PD order keeps its credential",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("x", "x")),
+				selectionDescriptor("B", "b", idField("x", "x")),
+				selectionDescriptor("C", "c", idField("z", "z")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "x": "1"}),
+				selectionCredential("b1", map[string]any{"kind": "b", "x": "2"}),
+				selectionCredential("c1", map[string]any{"kind": "c", "z": "1"}),
+			},
+			expected:        map[string]string{"A": "a1", "B": "", "C": "c1"},
+			expectedReasons: map[string][]string{"B": {"x"}},
+		},
+		{
+			name: "descriptors decided in the same round that disagree, other PD order: the first in PD order keeps its credential",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("B", "b", idField("x", "x")),
+				selectionDescriptor("C", "c", idField("z", "z")),
+				selectionDescriptor("A", "a", idField("x", "x")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "x": "1"}),
+				selectionCredential("b1", map[string]any{"kind": "b", "x": "2"}),
+				selectionCredential("c1", map[string]any{"kind": "c", "z": "1"}),
+			},
+			expected:        map[string]string{"A": "", "B": "b1", "C": "c1"},
+			expectedReasons: map[string][]string{"A": {"x"}},
+		},
+		{
+			name: "optional field that does not resolve is rejected by an external key",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("delegation", "delegation", optionalIDField("employee", "employee")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("no_employee", map[string]any{"kind": "delegation"}),
+				d1b,
+			},
+			selection:        map[string]string{"employee": "e2"},
+			expected:         map[string]string{"delegation": "D1b"},
+			orderIndependent: true,
+		},
+		{
+			name: "optional field that does not resolve agrees with a value selected inside the PD",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("site", "site")),
+				selectionDescriptor("B", "b", optionalIDField("site", "site")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "site": "s1"}),
+				selectionCredential("b_other_site", map[string]any{"kind": "b", "site": "s2"}),
+				selectionCredential("b_no_site", map[string]any{"kind": "b"}),
+			},
+			expected:         map[string]string{"A": "a1", "B": "b_no_site"},
+			orderIndependent: true,
+		},
+		{
+			name: "optional field that does not resolve adds nothing to the map",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("B", "b", optionalIDField("site", "site")),
+				selectionDescriptor("C", "c", idField("site", "site")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("b_no_site", map[string]any{"kind": "b"}),
+				selectionCredential("c1", map[string]any{"kind": "c", "site": "s2"}),
+				selectionCredential("c2", map[string]any{"kind": "c", "site": "s1"}),
+			},
+			// B is decided first; had it added a value for site, C would have been filtered.
+			expected:         map[string]string{"B": "b_no_site", "C": "c1"},
+			orderIndependent: true,
+		},
+		{
+			name: "descriptors sharing an id that resolves to arrays get equal arrays",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("tags", "tags")),
+				selectionDescriptor("B", "b", idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "tags": []any{"x", "y"}}),
+				selectionCredential("b1", map[string]any{"kind": "b", "tags": []any{"y", "x"}}),
+				selectionCredential("b2", map[string]any{"kind": "b", "tags": []any{"x", "y"}}),
+			},
+			expected:         map[string]string{"A": "a1", "B": "b2"},
+			orderIndependent: true,
+		},
+		{
+			name: "descriptors sharing an id that resolves to objects get equal objects",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("org", "org")),
+				selectionDescriptor("B", "b", idField("org", "org")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "org": map[string]any{"ura": "1", "name": "Org A"}}),
+				selectionCredential("b1", map[string]any{"kind": "b", "org": map[string]any{"ura": "2", "name": "Org B"}}),
+				selectionCredential("b2", map[string]any{"kind": "b", "org": map[string]any{"name": "Org A", "ura": "1"}}),
+			},
+			expected:         map[string]string{"A": "a1", "B": "b2"},
+			orderIndependent: true,
+		},
+		{
+			name: "array and scalar disagree",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("tags", "tags")),
+				selectionDescriptor("B", "b", idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "tags": []any{"x"}}),
+				selectionCredential("b_scalar", map[string]any{"kind": "b", "tags": "x"}),
+				selectionCredential("b_array", map[string]any{"kind": "b", "tags": []any{"x"}}),
+			},
+			expected:         map[string]string{"A": "a1", "B": "b_array"},
+			orderIndependent: true,
+		},
+		{
+			name: "scalar whose text looks like JSON does not equal an array",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("tags", "tags")),
+				selectionDescriptor("B", "b", idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "tags": []any{"x"}}),
+				selectionCredential("b1", map[string]any{"kind": "b", "tags": `["x"]`}),
+			},
+			expected:        map[string]string{"A": "a1", "B": ""},
+			expectedReasons: map[string][]string{"B": {"tags"}},
+		},
+		{
+			name: "descriptors decided in the same round with different arrays: the first in PD order keeps its credential",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("tags", "tags")),
+				selectionDescriptor("B", "b", idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "tags": []any{"x"}}),
+				selectionCredential("b1", map[string]any{"kind": "b", "tags": []any{"y"}}),
+			},
+			expected:        map[string]string{"A": "a1", "B": ""},
+			expectedReasons: map[string][]string{"B": {"tags"}},
+		},
+		{
+			name: "array picked by the first open descriptor filters the others",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("tags", "tags")),
+				selectionDescriptor("B", "b", idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "tags": []any{"x"}}),
+				selectionCredential("a2", map[string]any{"kind": "a", "tags": []any{"y"}}),
+				selectionCredential("b1", map[string]any{"kind": "b", "tags": []any{"y"}}),
+				selectionCredential("b2", map[string]any{"kind": "b", "tags": []any{"x"}}),
+			},
+			expected: map[string]string{"A": "a1", "B": "b2"},
+		},
+		{
+			name: "array value never matches an external key",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "tags": []any{"x"}}),
+			},
+			selection:        map[string]string{"tags": "x"},
+			expected:         map[string]string{"A": ""},
+			expectedReasons:  map[string][]string{"A": {"tags"}},
+			orderIndependent: true,
+		},
+		{
+			name: "numbers and booleans are compared as text",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("floor", "floor"), idField("active", "active")),
+				selectionDescriptor("B", "b", idField("floor", "floor"), idField("active", "active")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "floor": float64(3), "active": true}),
+				selectionCredential("b1", map[string]any{"kind": "b", "floor": "4", "active": "true"}),
+				selectionCredential("b2", map[string]any{"kind": "b", "floor": "3", "active": "false"}),
+				selectionCredential("b3", map[string]any{"kind": "b", "floor": "3", "active": "true"}),
+			},
+			selection:        map[string]string{"active": "true"},
+			expected:         map[string]string{"A": "a1", "B": "b3"},
+			orderIndependent: true,
+		},
+	}
+	for _, tc := range testCases {
+		orders := [][]*InputDescriptor{tc.descriptors}
+		if tc.orderIndependent {
+			orders = permutations(tc.descriptors)
+		}
+		for _, descriptors := range orders {
+			var order []string
+			for _, descriptor := range descriptors {
+				order = append(order, descriptor.Id)
+			}
+			t.Run(tc.name+" (order: "+strings.Join(order, ", ")+")", func(t *testing.T) {
+				pd := PresentationDefinition{InputDescriptors: descriptors}
+
+				candidates, reasons, err := pd.selectCredentials(tc.vcs, tc.selection)
+
+				require.NoError(t, err)
+				require.Len(t, candidates, len(descriptors))
+				for i, candidate := range candidates {
+					assert.Equal(t, descriptors[i].Id, candidate.InputDescriptor.Id, "candidates follow the order of the input descriptors")
+				}
+				assert.Equal(t, tc.expected, selectedCredentialIDs(candidates))
+				require.Len(t, reasons, len(descriptors))
+				actualReasons := make(map[string]string)
+				for i, reason := range reasons {
+					if reason != "" {
+						actualReasons[descriptors[i].Id] = reason
+					}
+				}
+				for descriptorID, expectedTexts := range tc.expectedReasons {
+					for _, expectedText := range expectedTexts {
+						assert.Contains(t, actualReasons[descriptorID], expectedText)
+					}
+				}
+				assert.Len(t, actualReasons, len(tc.expectedReasons))
+			})
+		}
+	}
+}
+
+func TestPresentationDefinition_selectCredentials_EdgeCases(t *testing.T) {
+	t.Run("empty (null) input descriptor is an error, not a panic", func(t *testing.T) {
+		pd := PresentationDefinition{InputDescriptors: []*InputDescriptor{
+			selectionDescriptor("A", "a"),
+			nil,
+		}}
+
+		_, _, err := pd.selectCredentials([]vc.VerifiableCredential{selectionCredential("a1", map[string]any{"kind": "a"})}, nil)
+
+		assert.EqualError(t, err, "input descriptor at index 1 of the presentation definition is empty")
+	})
+	t.Run("explanations follow the position of the input descriptor, also when ids are duplicated", func(t *testing.T) {
+		pd := PresentationDefinition{InputDescriptors: []*InputDescriptor{
+			selectionDescriptor("dup", "a", idField("x", "x")),
+			selectionDescriptor("dup", "b", idField("x", "x")),
+		}}
+		vcs := []vc.VerifiableCredential{
+			selectionCredential("a1", map[string]any{"kind": "a", "x": "1"}),
+			selectionCredential("b1", map[string]any{"kind": "b", "x": "2"}),
+		}
+
+		candidates, reasons, err := pd.selectCredentials(vcs, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, candidates[0].VC)
+		assert.Nil(t, candidates[1].VC)
+		assert.Empty(t, reasons[0])
+		assert.Contains(t, reasons[1], "x")
+	})
+}
+
+func TestPresentationDefinition_selectCredentials_MultipleCredentials(t *testing.T) {
+	testCases := []struct {
+		name          string
+		descriptors   []*InputDescriptor
+		vcs           []vc.VerifiableCredential
+		selection     map[string]string
+		expectedTexts []string
+	}{
+		{
+			name: "external key leaving matches that differ on another declared id",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("delegation", "delegation", idField("ura", "ura"), idField("employee", "employee")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"}),
+				selectionCredential("D2b", map[string]any{"kind": "delegation", "ura": "2", "employee": "e2"}),
+			},
+			selection:     map[string]string{"ura": "2"},
+			expectedTexts: []string{"input descriptor 'delegation'", "selected field id(s) ura", "differ on field id(s) employee"},
+		},
+		{
+			name: "a field that does not resolve differs from one that does",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("delegation", "delegation", idField("ura", "ura"), optionalIDField("site", "site")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2"}),
+				selectionCredential("D2site", map[string]any{"kind": "delegation", "ura": "2", "site": "s1"}),
+			},
+			selection:     map[string]string{"ura": "2"},
+			expectedTexts: []string{"input descriptor 'delegation'", "differ on field id(s) site"},
+		},
+		{
+			name: "arrays that differ make matches differ",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("A", "a", idField("ura", "ura"), idField("tags", "tags")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("a1", map[string]any{"kind": "a", "ura": "2", "tags": []any{"x"}}),
+				selectionCredential("a2", map[string]any{"kind": "a", "ura": "2", "tags": []any{"y"}}),
+			},
+			selection:     map[string]string{"ura": "2"},
+			expectedTexts: []string{"input descriptor 'A'", "differ on field id(s) tags"},
+		},
+		{
+			name: "open descriptor with an external key fails, even when another open descriptor could pick first",
+			descriptors: []*InputDescriptor{
+				selectionDescriptor("provider", "provider", idField("ura", "ura")),
+				selectionDescriptor("delegation", "delegation", idField("ura", "ura"), idField("employee", "employee")),
+			},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("P1", map[string]any{"kind": "provider", "ura": "1"}),
+				selectionCredential("P2", map[string]any{"kind": "provider", "ura": "2"}),
+				selectionCredential("D1", map[string]any{"kind": "delegation", "ura": "1", "employee": "e1"}),
+				selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"}),
+			},
+			selection:     map[string]string{"employee": "e1"},
+			expectedTexts: []string{"input descriptor 'delegation'", "selected field id(s) employee", "differ on field id(s) ura"},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pd := PresentationDefinition{InputDescriptors: tc.descriptors}
+
+			_, _, err := pd.selectCredentials(tc.vcs, tc.selection)
+
+			require.ErrorIs(t, err, ErrMultipleCredentials)
+			for _, expectedText := range tc.expectedTexts {
+				assert.ErrorContains(t, err, expectedText)
+			}
+		})
+	}
+}
+
+func TestPresentationDefinition_selectCredentials_IsDeterministic(t *testing.T) {
+	// Go randomizes map iteration; repeat a case with many ids to make sure the result never depends on it.
+	descriptors := []*InputDescriptor{
+		selectionDescriptor("A", "a", idField("v", "v"), idField("w", "w"), idField("x", "x")),
+		selectionDescriptor("B", "b", idField("w", "w"), idField("x", "x"), idField("y", "y")),
+		selectionDescriptor("C", "c", idField("x", "x"), idField("y", "y"), idField("z", "z")),
+	}
+	vcs := []vc.VerifiableCredential{
+		selectionCredential("a1", map[string]any{"kind": "a", "v": "1", "w": "1", "x": "1"}),
+		selectionCredential("a2", map[string]any{"kind": "a", "v": "2", "w": "2", "x": "2"}),
+		selectionCredential("b1", map[string]any{"kind": "b", "w": "2", "x": "2", "y": "1"}),
+		selectionCredential("b2", map[string]any{"kind": "b", "w": "1", "x": "1", "y": "2"}),
+		selectionCredential("c1", map[string]any{"kind": "c", "x": "2", "y": "1", "z": "1"}),
+		selectionCredential("c2", map[string]any{"kind": "c", "x": "1", "y": "2", "z": "2"}),
+	}
+	pd := PresentationDefinition{InputDescriptors: descriptors}
+	for i := 0; i < 50; i++ {
+		candidates, _, err := pd.selectCredentials(vcs, nil)
+
+		require.NoError(t, err)
+		require.Equal(t, map[string]string{"A": "a1", "B": "b2", "C": "c2"}, selectedCredentialIDs(candidates))
+	}
+}

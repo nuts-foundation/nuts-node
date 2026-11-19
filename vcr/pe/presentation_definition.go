@@ -148,7 +148,7 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 		// Collect all matching VCs for this input descriptor
 		var matchingVCs []vc.VerifiableCredential
 		for _, credential := range vcs {
-			isMatch, err := matchCredential(*inputDescriptor, credential)
+			isMatch, _, err := matchCredential(*inputDescriptor, credential)
 			if err != nil {
 				return nil, err
 			}
@@ -378,17 +378,19 @@ func matchProofType(proofType string, credential vc.VerifiableCredential) bool {
 	return false
 }
 
-func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredential) (bool, error) {
+// matchCredential matches the credential against the constraints of the input descriptor.
+// If it matches, it also returns the values of the constraints fields with an id (see matchConstraint).
+func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredential) (bool, map[string]interface{}, error) {
 	// for each constraint in descriptor.constraints:
 	//   a vc must match the constraint
 	if descriptor.Constraints != nil {
-		matches, _, err := matchConstraint(descriptor.Constraints, credential)
+		matches, values, err := matchConstraint(descriptor.Constraints, credential)
 		if err != nil {
-			return false, fmt.Errorf("failed to match constraint for input descriptor '%s' and credential '%s': %w", descriptor.Name, credential.ID, err)
+			return false, nil, fmt.Errorf("failed to match constraint for input descriptor '%s' and credential '%s': %w", descriptor.Name, credential.ID, err)
 		}
-		return matches, nil
+		return matches, values, nil
 	}
-	return true, nil
+	return true, map[string]interface{}{}, nil
 }
 
 // matchConstraint matches the constraint against the VC.
