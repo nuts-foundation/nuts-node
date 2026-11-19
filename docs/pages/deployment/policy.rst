@@ -242,12 +242,12 @@ If the SP wallet has no delegation credential issued by VP1's HCP, the request r
 The ``credential_selection`` map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``credential_selection`` is a key-value map (string keys → string values) used to disambiguate between credentials when multiple satisfy a single input descriptor. Keys must match a constraint field ``id``; values are the literal string the field should equal for selection.
+``credential_selection`` is a key-value map (string keys → string values) used to disambiguate between credentials when multiple satisfy a single input descriptor. Each key is a constraint field ``id``; values are the text the field should equal for selection (strings, numbers and booleans are compared as text). A PD that does not declare a key ignores it. The EHR-supplied keys are checked against all PDs of the request together (in the two-VP flow: the ``organization`` and ``service_provider`` PDs); a key that none of them declares results in ``400 invalid_request``.
 
 There are two sources of entries:
 
 - **EHR-supplied** — the ``credential_selection`` field on the request body. EHRs typically use this for runtime context like a patient or encounter identifier (e.g. ``patient_id``).
-- **Server-captured (two-VP only)** — entries populated automatically from VP1's matched constraint fields, as described above. The capture is *additive*: any EHR-supplied key always wins, and only string-typed captured values are merged in.
+- **Server-captured (two-VP only)** — entries populated automatically from VP1's matched constraint fields, as described above. The capture is *additive*: any EHR-supplied key always wins. Strings, numbers and booleans are merged in as text; arrays and objects are skipped.
 
 The same map is consulted by both single-VP and two-VP flows; the only difference is that the two-VP flow may add entries between VP1 and VP2.
 

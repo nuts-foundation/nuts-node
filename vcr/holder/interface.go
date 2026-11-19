@@ -52,7 +52,8 @@ type Wallet interface {
 	// BuildSubmission builds a Verifiable Presentation based on the given presentation definition.
 	// additionalCredentials can be given to have the submission consider extra credentials that are not in the wallet.
 	// credentialSelection optionally maps PD field IDs to expected values to disambiguate credential selection
-	// when multiple credentials match a single input descriptor.
+	// when multiple credentials match a single input descriptor. Keys the presentation definition does not declare
+	// are ignored (they may be meant for another PD of the same request); rejecting unknown keys is up to the caller.
 	BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, credentialSelection map[string]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 
 	// List returns all credentials in the wallet for the given holder.
