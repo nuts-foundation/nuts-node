@@ -147,6 +147,15 @@ func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping,
 	fieldsMap := make(map[string]any)
 	for _, definition := range presentationDefinitions {
 		currFields, err := definition.ResolveConstraintsFields(credentialMap)
+		if errors.Is(err, pe.ErrConflictingFieldValues) {
+			// The presented credentials give one field id different values: the presentation is invalid,
+			// which is an error of the party that presented it.
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.InvalidRequest,
+				Description:   err.Error(),
+				InternalError: err,
+			}
+		}
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,
