@@ -1,0 +1,91 @@
+{
+  "two-vp-integration": {
+    "organization": {
+      "id": "pd_organization",
+      "input_descriptors": [
+        {
+          "id": "id_organization_credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "HealthcareProviderCredential"
+                }
+              },
+              {
+                "id": "ura",
+                "path": [
+                  "$.credentialSubject.ura"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject.name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_city",
+                "path": [
+                  "$.credentialSubject.city"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "service_provider": {
+      "id": "pd_service_provider",
+      "input_descriptors": [
+        {
+          "id": "id_delegation_credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "ServiceProviderDelegationCredential"
+                }
+              },
+              {
+                "id": "ura",
+                "path": [
+                  "$.credentialSubject.delegatedBy"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "role",
+                "path": [
+                  "$.credentialSubject.role"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
