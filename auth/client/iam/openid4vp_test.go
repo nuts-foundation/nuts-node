@@ -40,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 	"github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/policy"
 	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
@@ -404,6 +405,48 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.Error(t, err)
+	})
+	t.Run("credential_selection keys", func(t *testing.T) {
+		// The remote AS serves a PD that declares the field id "patient_id".
+		servePDDeclaringPatientID := func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(pe.PresentationDefinition{
+				Id: "pd",
+				InputDescriptors: []*pe.InputDescriptor{{
+					Id: "patient",
+					Constraints: &pe.Constraints{Fields: []pe.Field{
+						{Id: to.Ptr("patient_id"), Path: []string{"$.credentialSubject.patientId"}},
+					}},
+				}},
+			})
+			_, _ = writer.Write(bytes)
+		}
+		t.Run("keys declared by the PD are passed to the wallet", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.presentationDefinition = servePDDeclaringPatientID
+			selection := map[string]string{"patient_id": "123"}
+			ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID}, nil)
+			ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), selection, gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
+
+			_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, selection, nil)
+
+			require.NoError(t, err)
+		})
+		t.Run("keys the PD does not declare fail with invalid_request before any VP is built", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.presentationDefinition = servePDDeclaringPatientID
+			// No ListDIDs or BuildSubmission expectations: the wallet must not be called.
+
+			_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil,
+				map[string]string{"patient_id": "123", "typo": "x", "another": "y"}, nil)
+
+			var oauthErr oauth.OAuth2Error
+			require.ErrorAs(t, err, &oauthErr)
+			assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+			assert.Contains(t, oauthErr.Description, "another, typo")
+			assert.NotContains(t, oauthErr.Description, "patient_id")
+		})
 	})
 }
 
@@ -772,6 +815,87 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		require.NotNil(t, response)
 		require.NotNil(t, response.DPoPKid)
 		assert.Equal(t, spKID, *response.DPoPKid)
+	})
+}
+
+func TestRelyingParty_RequestServiceAccessToken_TwoVP_CredentialSelectionKeys(t *testing.T) {
+	const subjectID = "subby"
+	const subjectClientID = "https://example.com/oauth2/subby"
+	const spSubjectID = "service-provider-subby"
+	scopes := "first second"
+	hcpDID := did.MustParseDID("did:test:hcp")
+	spDID := did.MustParseDID("did:test:sp")
+	pdDeclaring := func(pdID string, fieldID string) pe.PresentationDefinition {
+		return pe.PresentationDefinition{
+			Id: pdID,
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: pdID + "_descriptor",
+				Constraints: &pe.Constraints{Fields: []pe.Field{
+					{Id: to.Ptr(fieldID), Path: []string{"$.credentialSubject." + fieldID}},
+				}},
+			}},
+		}
+	}
+	orgPD := pdDeclaring("org_pd", "org_only")
+	spPD := pdDeclaring("sp_pd", "sp_only")
+	setup := func(t *testing.T) *clientServerTestContext {
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    orgPD,
+				pe.WalletOwnerServiceProvider: spPD,
+			},
+		}, nil)
+		return ctx
+	}
+
+	// A key only needs to be declared by one of the two PDs: the caller's keys apply to the token request as a whole.
+	acceptedCases := []struct {
+		name      string
+		selection map[string]string
+	}{
+		{name: "key declared only by the service_provider PD is accepted", selection: map[string]string{"sp_only": "b"}},
+		{name: "key declared only by the organization PD is accepted", selection: map[string]string{"org_only": "a"}},
+		{name: "keys declared by different PDs are accepted together", selection: map[string]string{"org_only": "a", "sp_only": "b"}},
+	}
+	for _, tc := range acceptedCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sp := spSubjectID
+			organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+			require.NoError(t, err)
+			serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+			require.NoError(t, err)
+			ctx := setup(t)
+			ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+			ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+			// Both wallets receive the full selection; each skips the keys its PD does not declare.
+			ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(), orgPD, tc.selection, gomock.Any()).
+				Return(organizationVP, &pe.PresentationSubmission{}, nil)
+			ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(), spPD, tc.selection, gomock.Any()).
+				Return(serviceProviderVP, &pe.PresentationSubmission{}, nil)
+
+			_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, tc.selection, &sp)
+
+			require.NoError(t, err)
+		})
+	}
+	t.Run("keys declared by neither PD fail with invalid_request before any VP is built", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := setup(t)
+		// No ListDIDs or BuildSubmission expectations: neither wallet may be called.
+
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil,
+			map[string]string{"org_only": "a", "sp_only": "b", "typo": "x", "another": "y"}, &sp)
+
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+		assert.Contains(t, oauthErr.Description, "another, typo")
+		assert.NotContains(t, oauthErr.Description, "org_only")
+		assert.NotContains(t, oauthErr.Description, "sp_only")
 	})
 }
 
