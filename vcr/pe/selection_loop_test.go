@@ -419,7 +419,7 @@ func TestPresentationDefinition_selectCredentials(t *testing.T) {
 			t.Run(tc.name+" (order: "+strings.Join(order, ", ")+")", func(t *testing.T) {
 				pd := PresentationDefinition{InputDescriptors: descriptors}
 
-				candidates, reasons, err := pd.selectCredentials(tc.vcs, tc.selection)
+				candidates, reasons, err := pd.selectCredentials(tc.vcs, tc.selection, nil)
 
 				require.NoError(t, err)
 				require.Len(t, candidates, len(descriptors))
@@ -452,7 +452,7 @@ func TestPresentationDefinition_selectCredentials_EdgeCases(t *testing.T) {
 			nil,
 		}}
 
-		_, _, err := pd.selectCredentials([]vc.VerifiableCredential{selectionCredential("a1", map[string]any{"kind": "a"})}, nil)
+		_, _, err := pd.selectCredentials([]vc.VerifiableCredential{selectionCredential("a1", map[string]any{"kind": "a"})}, nil, nil)
 
 		assert.EqualError(t, err, "input descriptor at index 1 of the presentation definition is empty")
 	})
@@ -466,7 +466,7 @@ func TestPresentationDefinition_selectCredentials_EdgeCases(t *testing.T) {
 			selectionCredential("b1", map[string]any{"kind": "b", "x": "2"}),
 		}
 
-		candidates, reasons, err := pd.selectCredentials(vcs, nil)
+		candidates, reasons, err := pd.selectCredentials(vcs, nil, nil)
 
 		require.NoError(t, err)
 		require.NotNil(t, candidates[0].VC)
@@ -540,7 +540,7 @@ func TestPresentationDefinition_selectCredentials_MultipleCredentials(t *testing
 		t.Run(tc.name, func(t *testing.T) {
 			pd := PresentationDefinition{InputDescriptors: tc.descriptors}
 
-			_, _, err := pd.selectCredentials(tc.vcs, tc.selection)
+			_, _, err := pd.selectCredentials(tc.vcs, tc.selection, nil)
 
 			require.ErrorIs(t, err, ErrMultipleCredentials)
 			for _, expectedText := range tc.expectedTexts {
@@ -567,7 +567,7 @@ func TestPresentationDefinition_selectCredentials_IsDeterministic(t *testing.T) 
 	}
 	pd := PresentationDefinition{InputDescriptors: descriptors}
 	for i := 0; i < 50; i++ {
-		candidates, _, err := pd.selectCredentials(vcs, nil)
+		candidates, _, err := pd.selectCredentials(vcs, nil, nil)
 
 		require.NoError(t, err)
 		require.Equal(t, map[string]string{"A": "a1", "B": "b2", "C": "c2"}, selectedCredentialIDs(candidates))

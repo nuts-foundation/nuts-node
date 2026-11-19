@@ -84,14 +84,21 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 // credentials whose field resolves to that value. When the matching credentials of such an input descriptor still
 // differ in their field id values, ErrMultipleCredentials is returned; without a selection that never happens.
 func (presentationDefinition PresentationDefinition) MatchWithSelection(vcs []vc.VerifiableCredential, selection map[string]string) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
+	return presentationDefinition.match(vcs, selection, nil)
+}
+
+// match is MatchWithSelection that, when submitted is not nil, only lets an input descriptor that submitted maps
+// select the credential submitted maps it to (see restrictToSubmitted). It is used to validate a presentation
+// submission against the mapping it states.
+func (presentationDefinition PresentationDefinition) match(vcs []vc.VerifiableCredential, selection map[string]string, submitted map[string]vc.VerifiableCredential) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
 	var selectedVCs []vc.VerifiableCredential
 	var descriptorMaps []InputDescriptorMappingObject
 	var err error
 	if len(presentationDefinition.SubmissionRequirements) > 0 {
-		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs, selection); err != nil {
+		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs, selection, submitted); err != nil {
 			return nil, nil, err
 		}
-	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs, selection); err != nil {
+	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs, selection, submitted); err != nil {
 		return nil, nil, err
 	}
 
@@ -146,9 +153,9 @@ func (presentationDefinition PresentationDefinition) CredentialsRequired() bool 
 	return len(presentationDefinition.InputDescriptors) > 0
 }
 
-func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selection map[string]string) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selection map[string]string, submitted map[string]vc.VerifiableCredential) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
 	// do the constraints check
-	candidates, unfulfilledReasons, err := presentationDefinition.selectCredentials(vcs, selection)
+	candidates, unfulfilledReasons, err := presentationDefinition.selectCredentials(vcs, selection, submitted)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -189,9 +196,9 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 	return descriptors, matchingCredentials, nil
 }
 
-func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential, selection map[string]string) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential, selection map[string]string, submitted map[string]vc.VerifiableCredential) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
 	// first we use the constraint matching algorithm to get the matching credentials
-	candidates, _, err := presentationDefinition.selectCredentials(vcs, selection)
+	candidates, _, err := presentationDefinition.selectCredentials(vcs, selection, submitted)
 	if err != nil {
 		return nil, nil, err
 	}

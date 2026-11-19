@@ -158,7 +158,7 @@ type descriptorSelection struct {
 // It returns an error for ErrMultipleCredentials, for a presentation definition that contains an empty (null)
 // input descriptor, and for errors while matching a credential (e.g. a faulty JSON path or regex pattern, or a
 // credential that cannot be converted to JSON).
-func (presentationDefinition PresentationDefinition) selectCredentials(vcs []vc.VerifiableCredential, selection map[string]string) ([]Candidate, []string, error) {
+func (presentationDefinition PresentationDefinition) selectCredentials(vcs []vc.VerifiableCredential, selection map[string]string, submitted map[string]vc.VerifiableCredential) ([]Candidate, []string, error) {
 	values := make(map[string]selectedValue)
 	descriptors := make([]*descriptorSelection, 0, len(presentationDefinition.InputDescriptors))
 	for i, inputDescriptor := range presentationDefinition.InputDescriptors {
@@ -166,7 +166,7 @@ func (presentationDefinition PresentationDefinition) selectCredentials(vcs []vc.
 			// A null entry (e.g. in a presentation definition from a remote party) cannot be fulfilled or mapped.
 			return nil, nil, fmt.Errorf("input descriptor at index %d of the presentation definition is empty", i)
 		}
-		matches, err := presentationDefinition.matchInputDescriptor(*inputDescriptor, vcs)
+		matches, err := presentationDefinition.matchInputDescriptor(*inputDescriptor, restrictToSubmitted(inputDescriptor.Id, vcs, submitted))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -319,6 +319,30 @@ func (d *descriptorSelection) differingFieldIDs() []string {
 				result = append(result, id)
 				break
 			}
+		}
+	}
+	return result
+}
+
+// restrictToSubmitted returns the credentials an input descriptor may select from. Without submitted (when building
+// a presentation) that is all of vcs. When validating a presentation submission, submitted maps input descriptor ids
+// to the credentials the submission maps them to; an input descriptor that the submission maps may then only select
+// that credential (compared by Raw(), as PresentationSubmission.Validate compares the outcome), and an input
+// descriptor the submission does not map gets no candidate. Exactly the stated mapping is validated: were unmapped
+// input descriptors free to select a presented credential, their selection could steer the agreement loop
+// differently than on the holder (e.g. win a tie-break the holder never saw) and reject a valid presentation.
+func restrictToSubmitted(inputDescriptorID string, vcs []vc.VerifiableCredential, submitted map[string]vc.VerifiableCredential) []vc.VerifiableCredential {
+	if submitted == nil {
+		return vcs
+	}
+	submittedCredential, mapped := submitted[inputDescriptorID]
+	if !mapped {
+		return nil
+	}
+	var result []vc.VerifiableCredential
+	for _, credential := range vcs {
+		if credential.Raw() == submittedCredential.Raw() {
+			result = append(result, credential)
 		}
 	}
 	return result

@@ -20,6 +20,7 @@ package pe
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -317,6 +318,220 @@ func TestPresentationSubmission_Validate_CredentialSelectionRoundTrip(t *testing
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
+}
+
+func TestPresentationSubmission_Validate_SubmittedMapping(t *testing.T) {
+	// Validate checks the mapping the submission states: an input descriptor the submission maps may only get the
+	// credential it is mapped to, after which constraints, formats, agreement on shared field ids and submission
+	// requirements are checked as when building.
+	holderDID := did.MustParseDID("did:example:holder")
+	presentationOf := func(holder did.DID, credentials ...vc.VerifiableCredential) vc.VerifiablePresentation {
+		return vc.VerifiablePresentation{
+			VerifiableCredential: credentials,
+			Proof:                []interface{}{proof.LDProof{VerificationMethod: ssi.MustParseURI(holder.String() + "#1")}},
+		}
+	}
+	mapping := func(inputDescriptorID string, index int) InputDescriptorMappingObject {
+		return InputDescriptorMappingObject{Id: inputDescriptorID, Format: "ldp_vc", Path: fmt.Sprintf("$.verifiableCredential[%d]", index)}
+	}
+	credentialIDs := func(credentials map[string]vc.VerifiableCredential) map[string]string {
+		result := make(map[string]string)
+		for inputDescriptorID, credential := range credentials {
+			result[inputDescriptorID] = credential.ID.String()
+		}
+		return result
+	}
+	// A credential that matches two input descriptors: org_with_ura and any_org both accept any org credential.
+	orgPD := PresentationDefinition{
+		Id: "orgs",
+		InputDescriptors: []*InputDescriptor{
+			selectionDescriptor("org_with_ura", "org", idField("ura", "ura")),
+			selectionDescriptor("any_org", "org"),
+			selectionDescriptor("membership", "membership", idField("ura", "ura")),
+		},
+	}
+	o1 := selectionCredential("O1", map[string]any{"kind": "org", "ura": "1"})
+	o2 := selectionCredential("O2", map[string]any{"kind": "org", "ura": "2"})
+	m1 := selectionCredential("M1", map[string]any{"kind": "membership", "ura": "1"})
+	m2 := selectionCredential("M2", map[string]any{"kind": "membership", "ura": "2"})
+
+	t.Run("round trip: a credential matching several descriptors, with a choice other than the first match", func(t *testing.T) {
+		builder := orgPD.PresentationSubmissionBuilder()
+		builder.AddWallet(holderDID, []vc.VerifiableCredential{m1, o2, o1})
+		submission, signInstruction, err := builder.Build("ldp_vp")
+		require.NoError(t, err)
+		// The membership (ura 1) makes org_with_ura take O1; any_org took its first match, O2. In the presentation
+		// [O1, O2, M1], O1 is the first match of any_org: re-deriving by first match would map it differently.
+		require.Equal(t, []string{"O1", "O2", "M1"}, []string{signInstruction.VerifiableCredentials[0].ID.String(), signInstruction.VerifiableCredentials[1].ID.String(), signInstruction.VerifiableCredentials[2].ID.String()})
+
+		credentials, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, signInstruction.VerifiableCredentials...)), orgPD)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"org_with_ura": "O1", "any_org": "O2", "membership": "M1"}, credentialIDs(credentials))
+	})
+	t.Run("round trip with a credential selection", func(t *testing.T) {
+		builder := orgPD.PresentationSubmissionBuilder()
+		builder.AddWallet(holderDID, []vc.VerifiableCredential{m2, m1, o2, o1})
+		builder.SetCredentialSelection(map[string]string{"ura": "1"})
+		submission, signInstruction, err := builder.Build("ldp_vp")
+		require.NoError(t, err)
+
+		credentials, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, signInstruction.VerifiableCredentials...)), orgPD)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"org_with_ura": "O1", "any_org": "O2", "membership": "M1"}, credentialIDs(credentials))
+	})
+	t.Run("presentation built by first match with agreeing values is accepted", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 0), mapping("any_org", 1), mapping("membership", 2),
+		}}
+
+		credentials, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o1, o1, m1)), orgPD)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"org_with_ura": "O1", "any_org": "O1", "membership": "M1"}, credentialIDs(credentials))
+	})
+	t.Run("two input descriptors mapped to the same credential", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 0), mapping("any_org", 0), mapping("membership", 1),
+		}}
+
+		credentials, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o1, m1)), orgPD)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"org_with_ura": "O1", "any_org": "O1", "membership": "M1"}, credentialIDs(credentials))
+	})
+	t.Run("credentials that disagree on a shared field id are rejected", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 0), mapping("any_org", 0), mapping("membership", 1),
+		}}
+
+		_, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o2, m1)), orgPD)
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+		assert.ErrorContains(t, err, "ura")
+	})
+	t.Run("credential that does not match the input descriptor it is mapped to is rejected", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 1), mapping("any_org", 0), mapping("membership", 0),
+		}}
+
+		_, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o1, m1)), orgPD)
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
+	t.Run("mapping to a credential that is not in the presentation is rejected", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 0), mapping("any_org", 0), mapping("membership", 5),
+		}}
+
+		_, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o1, m1)), orgPD)
+
+		assert.ErrorContains(t, err, "resolve credentials from presentation submission")
+	})
+	t.Run("mapping for an input descriptor the definition does not have is rejected", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 0), mapping("any_org", 0), mapping("membership", 1), mapping("unknown", 1),
+		}}
+
+		_, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o1, m1)), orgPD)
+
+		assert.EqualError(t, err, "expected 3 credentials, got 4")
+	})
+	t.Run("submission omitting a required input descriptor is rejected", func(t *testing.T) {
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			mapping("org_with_ura", 0), mapping("any_org", 0),
+		}}
+
+		_, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, o1, m1)), orgPD)
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+		assert.ErrorContains(t, err, "no VC for InputDescriptor (membership)")
+	})
+	t.Run("round trip: optional input descriptor the holder left unfulfilled because of agreement", func(t *testing.T) {
+		// "branch" (optional, pick min 0) comes first and declares ura. On the holder, "membership" decides ura=1,
+		// which filters "branch" (O2, O3) to nothing. The presented O2 (for "any_org") matches "branch" on its own:
+		// were "branch" free to select it when validating, it would be decided together with "membership", win
+		// the tie-break and leave "membership" without a credential.
+		branch := selectionDescriptor("branch", "org", idField("ura", "ura"))
+		branch.Group = []string{"optional"}
+		membership := selectionDescriptor("membership", "membership", idField("ura", "ura"))
+		membership.Group = []string{"required"}
+		anyOrg := selectionDescriptor("any_org", "org")
+		anyOrg.Group = []string{"required"}
+		zero := 0
+		pd := PresentationDefinition{
+			Id:               "optional",
+			InputDescriptors: []*InputDescriptor{branch, membership, anyOrg},
+			SubmissionRequirements: []*SubmissionRequirement{
+				{Rule: "all", From: "required"},
+				{Rule: "pick", Min: &zero, From: "optional"},
+			},
+		}
+		o3 := selectionCredential("O3", map[string]any{"kind": "org", "ura": "3"})
+		builder := pd.PresentationSubmissionBuilder()
+		builder.AddWallet(holderDID, []vc.VerifiableCredential{o2, o3, m1})
+		submission, signInstruction, err := builder.Build("ldp_vp")
+		require.NoError(t, err)
+		require.Len(t, submission.DescriptorMap, 2)
+
+		credentials, err := submission.Validate(toEnvelope(t, presentationOf(holderDID, signInstruction.VerifiableCredentials...)), pd)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"membership": "M1", "any_org": "O2"}, credentialIDs(credentials))
+	})
+	t.Run("mapping more input descriptors than a pick rule allows is rejected", func(t *testing.T) {
+		a := selectionDescriptor("A", "a")
+		a.Group = []string{"g"}
+		b := selectionDescriptor("B", "b")
+		b.Group = []string{"g"}
+		one := 1
+		pickPD := PresentationDefinition{
+			InputDescriptors:       []*InputDescriptor{a, b},
+			SubmissionRequirements: []*SubmissionRequirement{{Rule: "pick", Count: &one, From: "g"}},
+		}
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{mapping("A", 0), mapping("B", 1)}}
+		presentation := presentationOf(holderDID,
+			selectionCredential("a1", map[string]any{"kind": "a"}),
+			selectionCredential("b1", map[string]any{"kind": "b"}))
+
+		_, err := submission.Validate(toEnvelope(t, presentation), pickPD)
+
+		assert.EqualError(t, err, "expected 1 credentials, got 2")
+	})
+	t.Run("multiple presentations: the credentials of one presentation are matched", func(t *testing.T) {
+		otherHolderDID := did.MustParseDID("did:example:other")
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			{Id: "org_with_ura", Format: "ldp_vp", Path: "$[1]", PathNested: &InputDescriptorMappingObject{Id: "org_with_ura", Format: "ldp_vc", Path: "$.verifiableCredential[0]"}},
+			{Id: "any_org", Format: "ldp_vp", Path: "$[1]", PathNested: &InputDescriptorMappingObject{Id: "any_org", Format: "ldp_vc", Path: "$.verifiableCredential[1]"}},
+			{Id: "membership", Format: "ldp_vp", Path: "$[1]", PathNested: &InputDescriptorMappingObject{Id: "membership", Format: "ldp_vc", Path: "$.verifiableCredential[2]"}},
+		}}
+		envelope := toEnvelope(t, []interface{}{
+			presentationOf(otherHolderDID, o2, m2),
+			presentationOf(holderDID, o1, o2, m1),
+		})
+
+		credentials, err := submission.Validate(envelope, orgPD)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"org_with_ura": "O1", "any_org": "O2", "membership": "M1"}, credentialIDs(credentials))
+	})
+	t.Run("credentials spread over multiple presentations are rejected", func(t *testing.T) {
+		otherHolderDID := did.MustParseDID("did:example:other")
+		submission := PresentationSubmission{DescriptorMap: []InputDescriptorMappingObject{
+			{Id: "org_with_ura", Format: "ldp_vp", Path: "$[0]", PathNested: &InputDescriptorMappingObject{Id: "org_with_ura", Format: "ldp_vc", Path: "$.verifiableCredential[0]"}},
+			{Id: "any_org", Format: "ldp_vp", Path: "$[0]", PathNested: &InputDescriptorMappingObject{Id: "any_org", Format: "ldp_vc", Path: "$.verifiableCredential[0]"}},
+			{Id: "membership", Format: "ldp_vp", Path: "$[1]", PathNested: &InputDescriptorMappingObject{Id: "membership", Format: "ldp_vc", Path: "$.verifiableCredential[0]"}},
+		}}
+		envelope := toEnvelope(t, []interface{}{
+			presentationOf(otherHolderDID, o1, o2),
+			presentationOf(holderDID, m1, o2),
+		})
+
+		_, err := submission.Validate(envelope, orgPD)
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
 }
 
 func TestNewEnvelopeFromVP(t *testing.T) {
@@ -709,7 +924,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 
 		credentials, err := submission.Validate(toEnvelope(t, vp), definition)
 
-		assert.EqualError(t, err, "incorrect mapping for input descriptor: 2")
+		assert.EqualError(t, err, "failed to match presentation definition for did:example:123: missing credentials\nsubmission requirement (pick) has less credentials (0) than required (1)")
 		assert.Empty(t, credentials)
 	})
 	t.Run("submission contains mappings for non-existing input descriptors", func(t *testing.T) {
