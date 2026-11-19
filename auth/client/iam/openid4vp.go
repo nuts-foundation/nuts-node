@@ -474,9 +474,12 @@ func rejectUnknownSelectionKeys(credentialSelection map[string]string, presentat
 }
 
 // applyCapturedFieldsToSelection returns a fresh selection map containing every entry from selection
-// plus any string-valued entry from captured whose key is not already present. Non-string captured values
-// are skipped (selection is map[string]string). The caller's selection map is never mutated, so the
-// captured values cannot leak back through any retained reference.
+// plus every scalar entry from captured whose key is not already present (the caller's keys win).
+// Strings, numbers and booleans are carried over as text (see pe.ScalarAsText), the same form in which
+// credential_selection values are compared; arrays and objects cannot be compared that way and are skipped.
+// Captured keys the service_provider PD does not declare are carried over as well: the wallet skips them.
+// The caller's selection map is never mutated, so the captured values cannot leak back through any retained
+// reference.
 func applyCapturedFieldsToSelection(selection map[string]string, captured map[string]any) map[string]string {
 	merged := make(map[string]string, len(selection)+len(captured))
 	for k, v := range selection {
@@ -486,7 +489,7 @@ func applyCapturedFieldsToSelection(selection map[string]string, captured map[st
 		if _, exists := merged[k]; exists {
 			continue
 		}
-		s, ok := v.(string)
+		s, ok := pe.ScalarAsText(v)
 		if !ok {
 			continue
 		}
