@@ -86,6 +86,27 @@ func TestUnknownSelectionKeys(t *testing.T) {
 			expected:  []string{"ura"},
 		},
 		{
+			// The value plays no role: an empty value is still a selection for a declared key.
+			name:      "key with an empty value is checked by its name only",
+			selection: map[string]string{"ura": ""},
+			pds:       []PresentationDefinition{organizationPD},
+		},
+		{
+			name:      "empty key is unknown: fields without id do not declare it",
+			selection: map[string]string{"": "x"},
+			pds:       []PresentationDefinition{pdWithoutIDs},
+			expected:  []string{""},
+		},
+		{
+			// Checking keys does not depend on whether the PD is otherwise valid.
+			name:      "keys of a PD with duplicate input descriptor ids are declared",
+			selection: map[string]string{"ura": "1"},
+			pds: []PresentationDefinition{{InputDescriptors: []*InputDescriptor{
+				{Id: "duplicate", Constraints: &Constraints{Fields: []Field{{Id: to.Ptr("ura"), Path: []string{"$.credentialSubject.ura"}}}}},
+				{Id: "duplicate", Constraints: &Constraints{Fields: []Field{{Path: []string{"$.type"}}}}},
+			}}},
+		},
+		{
 			name:      "no PDs: every key is unknown",
 			selection: map[string]string{"ura": "1"},
 			expected:  []string{"ura"},
