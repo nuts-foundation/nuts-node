@@ -20,7 +20,6 @@ package pe
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/nuts-foundation/go-did/vc"
 )
@@ -130,18 +129,8 @@ func matchesSelections(values map[string]interface{}, selections []fieldSelectio
 		if !ok {
 			return false
 		}
-		var str string
-		switch v := resolved.(type) {
-		case string:
-			str = v
-		case float64:
-			str = strconv.FormatFloat(v, 'f', -1, 64)
-		case bool:
-			str = strconv.FormatBool(v)
-		default:
-			return false
-		}
-		if str != sel.expected {
+		str, ok := ScalarAsText(resolved)
+		if !ok || str != sel.expected {
 			return false
 		}
 	}
