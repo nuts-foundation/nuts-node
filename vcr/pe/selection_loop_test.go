@@ -655,6 +655,64 @@ func TestPresentationDefinition_MatchWithSelection(t *testing.T) {
 			expected:  []string{"B"},
 		},
 		{
+			// The presentation definition defines which values matter: credentials that differ only in fields
+			// without an id are interchangeable.
+			name: "credentials that differ only in fields without id: first is used",
+			pd:   patientPD,
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("granted", map[string]any{"patientId": "456", "consentStatus": true}),
+				selectionCredential("withdrawn", map[string]any{"patientId": "456", "consentStatus": false}),
+			},
+			selection: map[string]string{"patient_id": "456"},
+			expected:  []string{"granted"},
+		},
+		{
+			name: "matches boolean field values",
+			pd: PresentationDefinition{InputDescriptors: []*InputDescriptor{
+				{Id: "consent", Constraints: &Constraints{Fields: []Field{idField("granted", "granted")}}},
+			}},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("A", map[string]any{"granted": true}),
+				selectionCredential("B", map[string]any{"granted": false}),
+			},
+			selection: map[string]string{"granted": "false"},
+			expected:  []string{"B"},
+		},
+		{
+			// An empty value is a selection like any other: it does not mean "no selection".
+			name: "empty selection value only selects a field that is an empty string",
+			pd:   patientPD,
+			vcs: []vc.VerifiableCredential{
+				vc1,
+				selectionCredential("empty", map[string]any{"patientId": ""}),
+			},
+			selection: map[string]string{"patient_id": ""},
+			expected:  []string{"empty"},
+		},
+		{
+			name:        "empty selection value no credential has: ErrNoCredentials",
+			pd:          patientPD,
+			vcs:         []vc.VerifiableCredential{vc1, vc2},
+			selection:   map[string]string{"patient_id": ""},
+			expectedErr: ErrNoCredentials,
+			errTexts:    []string{"patient_credential", "patient_id"},
+		},
+		{
+			// A selected value is strict: a credential on which the (optional) field does not resolve never has it.
+			// Credentials without the field must not count as several differing matches either.
+			name: "selected optional field that resolves on no credential: ErrNoCredentials, not ErrMultipleCredentials",
+			pd: PresentationDefinition{InputDescriptors: []*InputDescriptor{
+				{Id: "patient_credential", Constraints: &Constraints{Fields: []Field{optionalIDField("patient_id", "patientId")}}},
+			}},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("A", map[string]any{"name": "x"}),
+				selectionCredential("B", map[string]any{"name": "y"}),
+			},
+			selection:   map[string]string{"patient_id": "456"},
+			expectedErr: ErrNoCredentials,
+			errTexts:    []string{"patient_credential", "patient_id"},
+		},
+		{
 			name:      "selection key the PD does not declare is skipped",
 			pd:        patientPD,
 			vcs:       []vc.VerifiableCredential{vc1, vc2},
@@ -785,6 +843,53 @@ func TestPresentationDefinition_MatchWithSelection_SubmissionRequirementsAndShar
 		assert.Equal(t, "A", selected[0].ID.String())
 		require.Len(t, mappings, 1)
 		assert.Equal(t, "as_jsonld", mappings[0].Id)
+	})
+	t.Run("selected value leaving differing credentials fails, also for a descriptor a pick rule may leave out", func(t *testing.T) {
+		// A pick rule with min 0 decides whether a descriptor without credential is acceptable, not which of several
+		// differing credentials the caller meant: leaving the descriptor out would silently ignore the selection.
+		provider := selectionDescriptor("provider", "provider", idField("ura", "ura"))
+		provider.Group = []string{"provider"}
+		delegation := selectionDescriptor("delegation", "delegation", idField("ura", "ura"), idField("employee", "employee"))
+		delegation.Group = []string{"delegation"}
+		zero := 0
+		one := 1
+		pd := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{provider, delegation},
+			SubmissionRequirements: []*SubmissionRequirement{
+				{Rule: "all", From: "provider"},
+				{Rule: "pick", From: "delegation", Min: &zero, Max: &one},
+			},
+		}
+		vcs := []vc.VerifiableCredential{
+			selectionCredential("P2", map[string]any{"kind": "provider", "ura": "2"}),
+			selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"}),
+			selectionCredential("D2b", map[string]any{"kind": "delegation", "ura": "2", "employee": "e2"}),
+		}
+
+		_, _, err := pd.MatchWithSelection(vcs, map[string]string{"ura": "2"})
+
+		require.ErrorIs(t, err, ErrMultipleCredentials)
+		assert.ErrorContains(t, err, "input descriptor 'delegation'")
+		assert.ErrorContains(t, err, "employee")
+	})
+	t.Run("one credential that fulfills two descriptors of a pick 1 group is presented once", func(t *testing.T) {
+		// The pick rule counts credentials: a credential matching several descriptors of the group must not be
+		// presented for more of them than the rule allows.
+		first := &InputDescriptor{Id: "first", Group: []string{"g"}, Constraints: &Constraints{Fields: []Field{idField("f1", "f1")}}}
+		second := &InputDescriptor{Id: "second", Group: []string{"g"}, Constraints: &Constraints{Fields: []Field{idField("f2", "f2")}}}
+		one := 1
+		pd := PresentationDefinition{
+			InputDescriptors:       []*InputDescriptor{first, second},
+			SubmissionRequirements: []*SubmissionRequirement{{Rule: "pick", Count: &one, From: "g"}},
+		}
+
+		selected, mappings, err := pd.Match([]vc.VerifiableCredential{selectionCredential("both", map[string]any{"f1": "x", "f2": "y"})})
+
+		require.NoError(t, err)
+		require.Len(t, selected, 1)
+		assert.Equal(t, "both", selected[0].ID.String())
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "first", mappings[0].Id)
 	})
 	t.Run("required descriptors that conflict: ErrNoCredentials naming the descriptor and the id", func(t *testing.T) {
 		pd := PresentationDefinition{InputDescriptors: []*InputDescriptor{
