@@ -125,7 +125,9 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 		// Parse this single authorized key entry
 		publicKey, comment, options, rest, err := ssh.ParseAuthorizedKey([]byte(line))
 		if err != nil {
-			// DSA keys are insecure and can't be parsed any more: ignore them, like other insecure keys
+			// golang.org/x/crypto removed DSA support (v0.59.0), so parsing an ssh-dss key now returns an error.
+			// DSA keys were already ignored as insecure. Keep ignoring them instead of rejecting the whole file,
+			// so a node with an old DSA entry in its authorized_keys still starts.
 			if slices.Contains(strings.Fields(line), dsaKeyType) {
 				log.Logger().WithError(err).Warnf("Ignoring insecure authorized_keys entry: %v", line)
 				continue
