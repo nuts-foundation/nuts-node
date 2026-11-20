@@ -25,6 +25,7 @@ import (
 	"crypto/rsa"
 	b64 "encoding/base64"
 	"fmt"
+	"slices"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -36,6 +37,9 @@ import (
 
 // minimumRSAKeySize defines the minimum length in bits of RSA keys
 const minimumRSAKeySize = 2048
+
+// dsaKeyType is the SSH key type of DSA keys, which are not supported
+const dsaKeyType = "ssh-dss"
 
 // authorizedKey is an SSH authorized key
 type authorizedKey struct {
@@ -121,6 +125,13 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 		// Parse this single authorized key entry
 		publicKey, comment, options, rest, err := ssh.ParseAuthorizedKey([]byte(line))
 		if err != nil {
+			// golang.org/x/crypto removed DSA support (v0.59.0), so parsing an ssh-dss key now returns an error.
+			// DSA keys were already ignored as insecure. Keep ignoring them instead of rejecting the whole file,
+			// so a node with an old DSA entry in its authorized_keys still starts.
+			if slices.Contains(strings.Fields(line), dsaKeyType) {
+				log.Logger().WithError(err).Warnf("Ignoring insecure authorized_keys entry: %v", line)
+				continue
+			}
 			return nil, fmt.Errorf("unparseable line (%v): %w", line, err)
 		}
 
