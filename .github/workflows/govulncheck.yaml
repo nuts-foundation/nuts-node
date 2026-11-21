@@ -51,3 +51,9 @@ jobs:
         with:
           go-version-input: 'stable'
           go-package: ./...
+          # JSON output never fails the action; the next step decides, so findings covered by a VEX statement can be skipped
+          output-format: 'json'
+          output-file: 'govulncheck.json'
+
+      - name: Fail on vulnerabilities not covered by a VEX statement
+        run: .github/scripts/govulncheck-vex.sh govulncheck.json .vex/nuts-node.openvex.json
