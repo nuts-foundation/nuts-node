@@ -20,7 +20,10 @@ package iam
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -174,5 +177,86 @@ func TestPEXConsumer_fulfill(t *testing.T) {
 		}
 		err := v.fulfill(PresentationSubmission{Id: orgPresentationDefinition.Id}, pe.Envelope{})
 		assert.Error(t, err)
+	})
+	t.Run("fields sharing an id carry different values", func(t *testing.T) {
+		definition := PresentationDefinition{
+			Id: "shared_id",
+			InputDescriptors: []*pe.InputDescriptor{
+				sharedIDInputDescriptor("organization", "Organization"),
+				sharedIDInputDescriptor("delegation", "Delegation"),
+			},
+		}
+		subjectDID := did.MustParseDID("did:web:example.com")
+		credentialWith := func(kind string, ura any) vc.VerifiableCredential {
+			return vc.VerifiableCredential{CredentialSubject: []map[string]any{{"id": subjectDID.String(), "kind": kind, "ura": ura}}}
+		}
+		submission := PresentationSubmission{DefinitionId: definition.Id, DescriptorMap: []pe.InputDescriptorMappingObject{
+			{Id: "organization", Path: "$.verifiableCredential[0]", Format: vc.JSONLDCredentialProofFormat},
+			{Id: "delegation", Path: "$.verifiableCredential[1]", Format: vc.JSONLDCredentialProofFormat},
+		}}
+		envelopeWith := func(t *testing.T, credentials ...vc.VerifiableCredential) pe.Envelope {
+			presentation := test.CreateJSONLDPresentation(t, subjectDID, nil, credentials...)
+			envelope, err := pe.ParseEnvelope([]byte(presentation.Raw()))
+			require.NoError(t, err)
+			return *envelope
+		}
+		t.Run("values differ", func(t *testing.T) {
+			v := newPEXConsumer(map[pe.WalletOwnerType]pe.PresentationDefinition{pe.WalletOwnerOrganization: definition})
+
+			err := v.fulfill(submission, envelopeWith(t, credentialWith("Organization", "1"), credentialWith("Delegation", "2")))
+
+			require.ErrorIs(t, err, pe.ErrConflictingFieldValues)
+			assert.EqualError(t, err, "presentation does not conform to presentation definition (id=shared_id): fields sharing an id resolve to different values: field id 'ura' in input descriptors 'organization' and 'delegation'")
+			assert.False(t, v.isFulfilled(definition.Id))
+		})
+		t.Run("values agree", func(t *testing.T) {
+			v := newPEXConsumer(map[pe.WalletOwnerType]pe.PresentationDefinition{pe.WalletOwnerOrganization: definition})
+
+			err := v.fulfill(submission, envelopeWith(t, credentialWith("Organization", "1"), credentialWith("Delegation", "1")))
+
+			require.NoError(t, err)
+			assert.True(t, v.isFulfilled(definition.Id))
+		})
+		t.Run("incorrect mapping without differing values - rejected by validation", func(t *testing.T) {
+			v := newPEXConsumer(map[pe.WalletOwnerType]pe.PresentationDefinition{pe.WalletOwnerOrganization: definition})
+			swapped := PresentationSubmission{DefinitionId: definition.Id, DescriptorMap: []pe.InputDescriptorMappingObject{
+				{Id: "organization", Path: "$.verifiableCredential[1]", Format: vc.JSONLDCredentialProofFormat},
+				{Id: "delegation", Path: "$.verifiableCredential[0]", Format: vc.JSONLDCredentialProofFormat},
+			}}
+
+			err := v.fulfill(swapped, envelopeWith(t, credentialWith("Organization", "1"), credentialWith("Delegation", "1")))
+
+			assert.EqualError(t, err, "presentation submission does not conform to presentation definition (id=shared_id)")
+			assert.False(t, v.isFulfilled(definition.Id))
+		})
+		t.Run("array values", func(t *testing.T) {
+			// the same input descriptors, but "ura" accepts any value, so it can resolve to an array
+			anyURA := func(id string, kind string) *pe.InputDescriptor {
+				descriptor := sharedIDInputDescriptor(id, kind)
+				descriptor.Constraints.Fields[1].Filter = nil
+				return descriptor
+			}
+			arrayDefinition := PresentationDefinition{
+				Id:               definition.Id,
+				InputDescriptors: []*pe.InputDescriptor{anyURA("organization", "Organization"), anyURA("delegation", "Delegation")},
+			}
+			t.Run("differ", func(t *testing.T) {
+				v := newPEXConsumer(map[pe.WalletOwnerType]pe.PresentationDefinition{pe.WalletOwnerOrganization: arrayDefinition})
+
+				err := v.fulfill(submission, envelopeWith(t, credentialWith("Organization", []any{"1", "2"}), credentialWith("Delegation", []any{"1", "3"})))
+
+				require.ErrorIs(t, err, pe.ErrConflictingFieldValues)
+				assert.ErrorContains(t, err, "field id 'ura' in input descriptors 'organization' and 'delegation'")
+				assert.False(t, v.isFulfilled(definition.Id))
+			})
+			t.Run("agree", func(t *testing.T) {
+				v := newPEXConsumer(map[pe.WalletOwnerType]pe.PresentationDefinition{pe.WalletOwnerOrganization: arrayDefinition})
+
+				err := v.fulfill(submission, envelopeWith(t, credentialWith("Organization", []any{"1", "2"}), credentialWith("Delegation", []any{"1", "2"})))
+
+				require.NoError(t, err)
+				assert.True(t, v.isFulfilled(definition.Id))
+			})
+		})
 	})
 }

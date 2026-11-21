@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 	"github.com/nuts-foundation/nuts-node/v6/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/nuts-foundation/nuts-node/v6/test"
@@ -175,6 +176,24 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(ctx, testServiceID, otherVP)
 			assert.ErrorIs(t, err, pe.ErrNoCredentials)
 
+			_, _, timestamp, _ := m.Get(ctx, testServiceID, 0)
+			assert.Equal(t, 0, timestamp)
+		})
+		t.Run("fields sharing an id carry different values", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				module.config.Client.RefreshInterval = 0
+				module.allDefinitions[testServiceID] = definitionWithConflictingFieldID()
+				module.serverDefinitions[testServiceID] = module.allDefinitions[testServiceID]
+			})
+
+			// No VerifyVP call is expected: the presentation is rejected on the Presentation Definition first.
+			err := m.Register(ctx, testServiceID, vpAlice)
+
+			assert.ErrorIs(t, err, ErrInvalidPresentation)
+			assert.ErrorIs(t, err, pe.ErrNoCredentials)
+			// Input descriptor 1 comes first in the Presentation Definition, so it keeps its credential; the credential
+			// of input descriptor 2 gives issuer_field another value, which leaves descriptor 2 without a credential.
+			assert.ErrorContains(t, err, "no VC for InputDescriptor (2): no matching credential has the selected value for field id(s) issuer_field")
 			_, _, timestamp, _ := m.Get(ctx, testServiceID, 0)
 			assert.Equal(t, 0, timestamp)
 		})
@@ -521,6 +540,65 @@ func TestModule_Search(t *testing.T) {
 		_, err := m.Search("unknown", nil)
 		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
+}
+
+func TestModule_presentationFromDiscoveryServerWithConflictingFieldValues(t *testing.T) {
+	// A Discovery Client stores every presentation it receives from the Discovery Server, valid or not, and Search
+	// only returns the ones that passed validation. A presentation whose credentials give fields sharing an id
+	// different values does not match the Presentation Definition, so it stays unvalidated and Search never returns it.
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	m, _ := setupModule(t, storageEngine, func(module *Module) {
+		module.config.Client.RefreshInterval = 0
+		module.allDefinitions[testServiceID] = definitionWithConflictingFieldID()
+	})
+	service := m.allDefinitions[testServiceID]
+	httpClient := client.NewMockHTTPClient(gomock.NewController(t))
+	httpClient.EXPECT().Get(gomock.Any(), service.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, testSeed, 1, nil)
+	updater := newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, httpClient)
+
+	// No VerifyVP call is expected: the presentation is rejected on the Presentation Definition first.
+	require.NoError(t, updater.updateService(context.Background(), service))
+
+	t.Run("verification rejects it", func(t *testing.T) {
+		err := m.verifyRegistration(service, vpAlice)
+
+		assert.ErrorIs(t, err, ErrInvalidPresentation)
+		assert.ErrorIs(t, err, pe.ErrNoCredentials)
+		assert.ErrorContains(t, err, "no VC for InputDescriptor (2): no matching credential has the selected value for field id(s) issuer_field")
+	})
+	t.Run("stored, but not validated, also not by background validation", func(t *testing.T) {
+		exists, err := m.store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		assert.True(t, exists)
+
+		require.NoError(t, m.registrationManager.validate())
+
+		validated, err := m.store.allPresentations(true)
+		require.NoError(t, err)
+		assert.Empty(t, validated)
+	})
+	t.Run("not returned by Search", func(t *testing.T) {
+		results, err := m.Search(testServiceID, map[string]string{
+			"credentialSubject.person.givenName": "Alice",
+		})
+
+		require.NoError(t, err)
+		assert.Empty(t, results)
+	})
+}
+
+// definitionWithConflictingFieldID returns the test service definition with the field id of input descriptor 1 (the
+// issuer of vcAlice) also declared on input descriptor 2, where vpAlice resolves it to her authorization server URL.
+// The credentials of vpAlice therefore give the fields sharing that id different values.
+func definitionWithConflictingFieldID() ServiceDefinition {
+	definition := testDefinitions()[testServiceID]
+	descriptor := definition.PresentationDefinition.InputDescriptors[1]
+	descriptor.Constraints.Fields = append(descriptor.Constraints.Fields, pe.Field{
+		Id:   to.Ptr("issuer_field"),
+		Path: []string{"$.credentialSubject.authServerURL"},
+	})
+	return definition
 }
 
 func TestModule_update(t *testing.T) {
