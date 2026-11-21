@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
 	"os"
 	"time"
 )
@@ -73,6 +74,8 @@ func (p *PKI) Configure(config core.ServerConfig) error {
 			return err
 		}
 	}
+	// Outbound HTTPS to the public web doesn't go through CreateTLSConfig, so check its certificate chains here.
+	_ = p.SetVerifyPeerCertificateFunc(client.SafeHttpTransport.TLSClientConfig) // no error can occur
 	return nil
 }
 
