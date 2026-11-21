@@ -1,0 +1,66 @@
+{
+  "two-vp-scope": {
+    "organization": {
+      "id": "pd_organization",
+      "input_descriptors": [
+        {
+          "id": "id_org_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "NutsOrganizationCredential"
+                }
+              },
+              {
+                "id": "organization_ura",
+                "path": [
+                  "$.credentialSubject.organization.ura"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "12345"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "service_provider": {
+      "id": "pd_service_provider",
+      "input_descriptors": [
+        {
+          "id": "id_sp_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "ServiceProviderCredential"
+                }
+              },
+              {
+                "id": "organization_ura",
+                "path": [
+                  "$.credentialSubject.ura"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "67890"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

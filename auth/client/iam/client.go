@@ -107,6 +107,9 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 		}
 		return nil, errors.Join(ErrBadGateway, err)
 	}
+	// The field ids of this presentation definition are deliberately not checked with pe.ValidateFieldIDs:
+	// that check is for presentation definitions in the node's own configuration, where a violation is a
+	// configuration error. A remote authorization server's definition is used as-is, it is up to that server.
 
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }

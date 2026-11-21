@@ -97,6 +97,35 @@ func TestStore_LoadFromFile(t *testing.T) {
 
 		assert.ErrorContains(t, err, "must define at least one of 'organization', 'service_provider', or 'user'")
 	})
+
+	t.Run("field ids", func(t *testing.T) {
+		t.Run("user PD is validated separately from the organization and service_provider PDs", func(t *testing.T) {
+			store := LocalPDP{}
+
+			// 'identifier' has type string in the organization and service_provider PDs, but type number in the user PD.
+			err := store.loadFromFile("test/field_ids/valid/user_checked_separately.json")
+
+			require.NoError(t, err)
+		})
+		t.Run("returns an error if organization and service_provider PDs declare different consts for one id", func(t *testing.T) {
+			store := LocalPDP{}
+
+			err := store.loadFromFile("test/field_ids/invalid/org_sp_conflicting_const.json")
+
+			assert.EqualError(t, err, "invalid field ids in credential profile for scope \"two-vp-scope\" (file=test/field_ids/invalid/org_sp_conflicting_const.json): "+
+				"field id 'organization_ura' is used in input descriptor 'id_org_cred' (presentation definition 'pd_organization'), input descriptor 'id_sp_cred' (presentation definition 'pd_service_provider'), "+
+				"with conflicting filter consts: '12345' in input descriptor 'id_org_cred' (presentation definition 'pd_organization'), '67890' in input descriptor 'id_sp_cred' (presentation definition 'pd_service_provider')")
+		})
+		t.Run("returns an error if the user PD has an optional field with a shared id", func(t *testing.T) {
+			store := LocalPDP{}
+
+			err := store.loadFromFile("test/field_ids/invalid/user_shared_optional.json")
+
+			assert.EqualError(t, err, "invalid field ids in credential profile for scope \"user-scope\" (file=test/field_ids/invalid/user_shared_optional.json): "+
+				"field id 'employee_id' is used in input descriptor 'id_employee_cred' (presentation definition 'pd_user'), input descriptor 'id_role_cred' (presentation definition 'pd_user'), "+
+				"but is optional in input descriptor 'id_role_cred' (presentation definition 'pd_user'): a field id used in more than one input descriptor may not be optional")
+		})
+	})
 }
 
 func TestLocalPDP_FindCredentialProfile(t *testing.T) {
@@ -203,6 +232,16 @@ func TestLocalPDP_ScopePolicyConfig(t *testing.T) {
 }
 
 func TestLocalPDP_Configure(t *testing.T) {
+	t.Run("conflicting field ids in a policy file fail", func(t *testing.T) {
+		pdp := New()
+		pdp.config.Directory = "test/field_ids/invalid"
+
+		err := pdp.Configure(core.ServerConfig{})
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "failed to load policy from directory: invalid field ids in credential profile for scope \"two-vp-scope\" (file=test/field_ids/invalid/org_sp_conflicting_const.json)")
+		assert.ErrorContains(t, err, "field id 'organization_ura'")
+	})
 	t.Run("dynamic scope_policy without AuthZen endpoint fails", func(t *testing.T) {
 		store := LocalPDP{}
 		err := store.loadFromFile("test/scope_policy/dynamic.json")
