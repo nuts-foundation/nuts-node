@@ -1,0 +1,200 @@
+{
+  "two-vp-integration": {
+    "organization": {
+      "id": "pd_organization",
+      "input_descriptors": [
+        {
+          "id": "id_organization_credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "HealthcareProviderCredential"
+                }
+              },
+              {
+                "id": "ura",
+                "path": [
+                  "$.credentialSubject.ura"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject.name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_city",
+                "path": [
+                  "$.credentialSubject.city"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "service_provider": {
+      "id": "pd_service_provider",
+      "input_descriptors": [
+        {
+          "id": "id_delegation_credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "ServiceProviderDelegationCredential"
+                }
+              },
+              {
+                "id": "ura",
+                "path": [
+                  "$.credentialSubject.delegatedBy"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "role",
+                "path": [
+                  "$.credentialSubject.role"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "two-vp-integration-pick": {
+    "organization": {
+      "id": "pd_organization_pick",
+      "submission_requirements": [
+        {
+          "rule": "pick",
+          "count": 1,
+          "from": "organization"
+        }
+      ],
+      "input_descriptors": [
+        {
+          "id": "id_organization_credential",
+          "group": [
+            "organization"
+          ],
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "HealthcareProviderCredential"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject.name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_registration_credential",
+          "group": [
+            "organization"
+          ],
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "OrganizationRegistrationCredential"
+                }
+              },
+              {
+                "id": "ura",
+                "path": [
+                  "$.credentialSubject.ura"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "service_provider": {
+      "id": "pd_service_provider_pick",
+      "input_descriptors": [
+        {
+          "id": "id_delegation_credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "ServiceProviderDelegationCredential"
+                }
+              },
+              {
+                "id": "ura",
+                "path": [
+                  "$.credentialSubject.delegatedBy"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "role",
+                "path": [
+                  "$.credentialSubject.role"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
