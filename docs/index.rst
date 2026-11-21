@@ -11,7 +11,7 @@ How to design a use case, implement it and integrate the Nuts node with your EHR
 
     This version of the documentation is for Nuts v6.
     It no longer describes the setup of the Nuts network required for did:nuts.
-    If you're looking for information on setting up a Nuts network, please refer to the `previous version <https://nuts-node.readthedocs.io/en/v5.4/>`_.
+    That, and how to implement a use case with Nuts spec v1 (``did:nuts``) on Nuts v6, is on the wiki: `Implementing a Nuts spec v1 use case <https://wiki.nuts.nl/link/185>`_.
 
 .. toctree::
     :maxdepth: 1
