@@ -457,6 +457,66 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		require.Len(t, subjects, 1)
 		assert.Equal(t, "Second Org B.V.", subjects[0]["organization"].(map[string]interface{})["name"])
 	})
+	t.Run("ok - credential_selection: a descriptor sharing a field id follows the selected credential", func(t *testing.T) {
+		// The caller selects the organization by name. The branch descriptor declares the same field id "org_city"
+		// as the organization descriptor, so it must get the branch in the selected organization's city, although
+		// the other branch comes first in the wallet.
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil)
+		organizationCredential := func(name string, city string) vc.VerifiableCredential {
+			var result vc.VerifiableCredential
+			require.NoError(t, result.UnmarshalJSON([]byte(`{
+				"@context": ["https://nuts.nl/credentials/v1","https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],
+				"type": ["NutsOrganizationCredential", "VerifiableCredential"],
+				"issuer": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
+				"issuanceDate": "2022-06-01T15:34:40.65319+02:00",
+				"credentialSubject": {"id": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey", "organization": {"name": "`+name+`", "city": "`+city+`"}}
+			}`)))
+			return result
+		}
+		cityField := pe.Field{Id: to.Ptr("org_city"), Path: []string{"$.credentialSubject.organization.city"}}
+		pd := pe.PresentationDefinition{
+			InputDescriptors: []*pe.InputDescriptor{
+				{
+					Id: "organization",
+					Constraints: &pe.Constraints{Fields: []pe.Field{
+						{Id: to.Ptr("org_name"), Path: []string{"$.credentialSubject.organization.name"}, Filter: &pe.Filter{Type: "string", Pattern: to.Ptr("^Org .*$")}},
+						cityField,
+					}},
+				},
+				{
+					Id: "branch",
+					Constraints: &pe.Constraints{Fields: []pe.Field{
+						{Path: []string{"$.credentialSubject.organization.name"}, Filter: &pe.Filter{Type: "string", Const: to.Ptr("Branch office")}},
+						cityField,
+					}},
+				},
+			},
+		}
+		wallet := map[did.DID][]vc.VerifiableCredential{
+			nutsWalletDID: {
+				organizationCredential("Org A", "Amsterdam"),
+				organizationCredential("Org B", "Rotterdam"),
+				organizationCredential("Branch office", "Amsterdam"),
+				organizationCredential("Branch office", "Rotterdam"),
+			},
+		}
+		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
+
+		vp, submission, err := w.buildSubmission(ctx, wallet, pd, map[string]string{"org_name": "Org B"},
+			BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+
+		require.NoError(t, err)
+		require.NotNil(t, submission)
+		require.Len(t, vp.VerifiableCredential, 2)
+		organization := vp.VerifiableCredential[0].CredentialSubject[0]["organization"].(map[string]interface{})
+		assert.Equal(t, "Org B", organization["name"])
+		branch := vp.VerifiableCredential[1].CredentialSubject[0]["organization"].(map[string]interface{})
+		assert.Equal(t, "Branch office", branch["name"])
+		assert.Equal(t, "Rotterdam", branch["city"])
+	})
 	t.Run("ok - credential_selection key not declared by the PD is ignored", func(t *testing.T) {
 		// A selection key may target another PD of the same token request (e.g. the other VP in the
 		// jwt-bearer flow), so the wallet skips keys this PD does not declare instead of failing.
