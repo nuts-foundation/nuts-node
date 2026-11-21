@@ -40,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 	"github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/policy"
 	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
@@ -405,6 +406,48 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+	t.Run("credential_selection keys", func(t *testing.T) {
+		// The remote AS serves a PD that declares the field id "patient_id".
+		servePDDeclaringPatientID := func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(pe.PresentationDefinition{
+				Id: "pd",
+				InputDescriptors: []*pe.InputDescriptor{{
+					Id: "patient",
+					Constraints: &pe.Constraints{Fields: []pe.Field{
+						{Id: to.Ptr("patient_id"), Path: []string{"$.credentialSubject.patientId"}},
+					}},
+				}},
+			})
+			_, _ = writer.Write(bytes)
+		}
+		t.Run("keys declared by the PD are passed to the wallet", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.presentationDefinition = servePDDeclaringPatientID
+			selection := map[string]string{"patient_id": "123"}
+			ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID}, nil)
+			ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), selection, gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
+
+			_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, selection, nil)
+
+			require.NoError(t, err)
+		})
+		t.Run("keys the PD does not declare fail with invalid_request before any VP is built", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.presentationDefinition = servePDDeclaringPatientID
+			// No ListDIDs or BuildSubmission expectations: the wallet must not be called.
+
+			_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil,
+				map[string]string{"patient_id": "123", "typo": "x", "another": "y"}, nil)
+
+			var oauthErr oauth.OAuth2Error
+			require.ErrorAs(t, err, &oauthErr)
+			assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+			assert.Contains(t, oauthErr.Description, "another, typo")
+			assert.NotContains(t, oauthErr.Description, "patient_id")
+		})
+	})
 }
 
 // enableJwtBearerClient flips the experimental jwt-bearer client feature flag on the test client.
@@ -738,6 +781,83 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		assert.Equal(t, "did:test:hcp", capturedSPSelection["delegating_hcp"])
 	})
 
+	t.Run("captured values whose id the service_provider PD does not declare do not break the request", func(t *testing.T) {
+		// The organization PD may declare ids the service_provider PD does not have. Their captured values are
+		// carried over to the service-provider wallet like any other captured value (numbers as text), and the
+		// client does not reject them: only the caller's own keys are checked against the PDs. The wallet then
+		// skips keys its PD does not declare (covered by the holder and pe tests).
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		organizationVP, err := vc.ParseVerifiablePresentation(`{
+			"@context": ["https://www.w3.org/2018/credentials/v1"],
+			"type": ["VerifiablePresentation"],
+			"holder": "did:test:hcp",
+			"verifiableCredential": [{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				"type": ["VerifiableCredential"],
+				"issuer": "did:test:hcp",
+				"credentialSubject": {"id": "did:test:hcp", "floor": 3},
+				"proof": {"type": "JsonWebSignature2020"}
+			}],
+			"proof": {"type": "JsonWebSignature2020"}
+		}`)
+		require.NoError(t, err)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+		organizationSubmission := &pe.PresentationSubmission{
+			DescriptorMap: []pe.InputDescriptorMappingObject{
+				{Id: "id_org_cred", Format: "ldp_vc", Path: "$.verifiableCredential[0]"},
+			},
+		}
+		orgPD := pe.PresentationDefinition{
+			Id: "org_pd",
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: "id_org_cred",
+				Constraints: &pe.Constraints{Fields: []pe.Field{
+					{Id: to.Ptr("delegating_hcp"), Path: []string{"$.issuer"}},
+					{Id: to.Ptr("org_floor"), Path: []string{"$.credentialSubject.floor"}},
+				}},
+			}},
+		}
+		// The service_provider PD declares "delegating_hcp" but not "org_floor".
+		spPD := pe.PresentationDefinition{
+			Id: "sp_pd",
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: "id_sp_delegation",
+				Constraints: &pe.Constraints{Fields: []pe.Field{
+					{Id: to.Ptr("delegating_hcp"), Path: []string{"$.issuer"}},
+				}},
+			}},
+		}
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    orgPD,
+				pe.WalletOwnerServiceProvider: spPD,
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			orgPD, gomock.Any(), gomock.Any()).Return(organizationVP, organizationSubmission, nil)
+		var capturedSPSelection map[string]string
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
+			spPD, gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, sel map[string]string, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				capturedSPSelection = sel
+				return serviceProviderVP, &pe.PresentationSubmission{}, nil
+			})
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"delegating_hcp": "did:test:hcp", "org_floor": "3"}, capturedSPSelection)
+	})
+
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		// DPoP binds the issued access token to a key the SP wallet controls — the proof must be signed with
 		// the SP DID's key (serviceProviderVP.Holder), not the HCP DID's key.
@@ -775,6 +895,87 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	})
 }
 
+func TestRelyingParty_RequestServiceAccessToken_TwoVP_CredentialSelectionKeys(t *testing.T) {
+	const subjectID = "subby"
+	const subjectClientID = "https://example.com/oauth2/subby"
+	const spSubjectID = "service-provider-subby"
+	scopes := "first second"
+	hcpDID := did.MustParseDID("did:test:hcp")
+	spDID := did.MustParseDID("did:test:sp")
+	pdDeclaring := func(pdID string, fieldID string) pe.PresentationDefinition {
+		return pe.PresentationDefinition{
+			Id: pdID,
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: pdID + "_descriptor",
+				Constraints: &pe.Constraints{Fields: []pe.Field{
+					{Id: to.Ptr(fieldID), Path: []string{"$.credentialSubject." + fieldID}},
+				}},
+			}},
+		}
+	}
+	orgPD := pdDeclaring("org_pd", "org_only")
+	spPD := pdDeclaring("sp_pd", "sp_only")
+	setup := func(t *testing.T) *clientServerTestContext {
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    orgPD,
+				pe.WalletOwnerServiceProvider: spPD,
+			},
+		}, nil)
+		return ctx
+	}
+
+	// A key only needs to be declared by one of the two PDs: the caller's keys apply to the token request as a whole.
+	acceptedCases := []struct {
+		name      string
+		selection map[string]string
+	}{
+		{name: "key declared only by the service_provider PD is accepted", selection: map[string]string{"sp_only": "b"}},
+		{name: "key declared only by the organization PD is accepted", selection: map[string]string{"org_only": "a"}},
+		{name: "keys declared by different PDs are accepted together", selection: map[string]string{"org_only": "a", "sp_only": "b"}},
+	}
+	for _, tc := range acceptedCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sp := spSubjectID
+			organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+			require.NoError(t, err)
+			serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+			require.NoError(t, err)
+			ctx := setup(t)
+			ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+			ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+			// Both wallets receive the full selection; each skips the keys its PD does not declare.
+			ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(), orgPD, tc.selection, gomock.Any()).
+				Return(organizationVP, &pe.PresentationSubmission{}, nil)
+			ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(), spPD, tc.selection, gomock.Any()).
+				Return(serviceProviderVP, &pe.PresentationSubmission{}, nil)
+
+			_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, tc.selection, &sp)
+
+			require.NoError(t, err)
+		})
+	}
+	t.Run("keys declared by neither PD fail with invalid_request before any VP is built", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := setup(t)
+		// No ListDIDs or BuildSubmission expectations: neither wallet may be called.
+
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil,
+			map[string]string{"org_only": "a", "sp_only": "b", "typo": "x", "another": "y"}, &sp)
+
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+		assert.Contains(t, oauthErr.Description, "another, typo")
+		assert.NotContains(t, oauthErr.Description, "org_only")
+		assert.NotContains(t, oauthErr.Description, "sp_only")
+	})
+}
+
 func TestApplyCapturedFieldsToSelection(t *testing.T) {
 	t.Run("adds string-valued captured entries to a nil selection", func(t *testing.T) {
 		merged := applyCapturedFieldsToSelection(nil, map[string]any{"delegating_hcp": "did:test:hcp"})
@@ -790,8 +991,18 @@ func TestApplyCapturedFieldsToSelection(t *testing.T) {
 		assert.Equal(t, "did:ehr:override", merged["delegating_hcp"])
 	})
 
-	t.Run("skips non-string captured values", func(t *testing.T) {
-		merged := applyCapturedFieldsToSelection(nil, map[string]any{"int_field": 42, "string_field": "ok"})
+	t.Run("carries numbers and booleans over as text", func(t *testing.T) {
+		// Resolved JSON numbers are float64; they are compared as text, like credential_selection values.
+		merged := applyCapturedFieldsToSelection(nil, map[string]any{"number_field": float64(42), "bool_field": true, "string_field": "ok"})
+
+		assert.Equal(t, map[string]string{"number_field": "42", "bool_field": "true", "string_field": "ok"}, merged)
+	})
+	t.Run("skips captured values that are not scalars", func(t *testing.T) {
+		merged := applyCapturedFieldsToSelection(nil, map[string]any{
+			"array_field":  []any{"a", "b"},
+			"object_field": map[string]any{"a": "b"},
+			"string_field": "ok",
+		})
 
 		assert.Equal(t, map[string]string{"string_field": "ok"}, merged)
 	})
