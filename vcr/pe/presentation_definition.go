@@ -108,27 +108,35 @@ func (presentationDefinition PresentationDefinition) match(vcs []vc.VerifiableCr
 // ResolveConstraintsFields returns a map where each of the InputDescriptor constraints field is mapped,
 // to the corresponding value from the Verifiable Credentials that map to the InputDescriptor.
 // The credentialMap is a map with the InputDescriptor.Id as key and the VerifiableCredential as value.
-// Constraints that contain no ID are ignored.
+// Constraints that contain no ID are ignored. Entries of credentialMap for input descriptors this definition does not
+// have are ignored too.
+//
+// A field id names one value: when fields sharing an id resolve to different values across the credentials, an error
+// wrapping ErrConflictingFieldValues is returned, naming the id and the input descriptors. An optional field that does
+// not resolve (nil) agrees with any value. Scalars are compared as text, so the string "1" agrees with the number 1;
+// in that case the value of the first input descriptor in the order of the definition is returned. Input descriptors
+// are visited in that order, so the result does not depend on the iteration order of credentialMap.
 func (presentationDefinition PresentationDefinition) ResolveConstraintsFields(credentialMap map[string]vc.VerifiableCredential) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
-	for inputDescriptorID, cred := range credentialMap {
-		// Find the input descriptor
-		var inputDescriptor InputDescriptor
-		for _, curr := range presentationDefinition.InputDescriptors {
-			if curr.Id == inputDescriptorID {
-				inputDescriptor = *curr
-				break
-			}
+	resolvedBy := make(map[string]string)
+	visited := make(map[string]bool)
+	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
+		// Credentials are mapped to input descriptors by id, so when several input descriptors share an id only the
+		// first of them is used.
+		if inputDescriptor == nil || visited[inputDescriptor.Id] {
+			continue
 		}
-		if inputDescriptor.Constraints == nil {
+		visited[inputDescriptor.Id] = true
+		cred, ok := credentialMap[inputDescriptor.Id]
+		if !ok || inputDescriptor.Constraints == nil {
 			continue
 		}
 		_, values, err := matchConstraint(inputDescriptor.Constraints, cred)
 		if err != nil {
-			return nil, fmt.Errorf("failed to match constraint for input descriptor '%s' and credential '%s': %w", inputDescriptorID, cred.ID, err)
+			return nil, fmt.Errorf("failed to match constraint for input descriptor '%s' and credential '%s': %w", inputDescriptor.Id, cred.ID, err)
 		}
-		for key, value := range values {
-			result[key] = value
+		if err := mergeFieldValues(result, resolvedBy, inputDescriptor.Id, values); err != nil {
+			return nil, err
 		}
 	}
 	return result, nil

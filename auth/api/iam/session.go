@@ -139,8 +139,27 @@ func (v *PEXConsumer) fulfill(submission pe.PresentationSubmission, envelope pe.
 		return errors.New("presentation definition is already fulfilled")
 	}
 
-	_, err := submission.Validate(envelope, *definition)
-	if err != nil {
+	// A field id names one value, so a presentation in which fields sharing an id carry different values is invalid.
+	// Validate below rejects such a presentation too (matching only selects credentials that agree on shared ids),
+	// but with a generic error. Check it first, so the presenting party is told which field id and which input
+	// descriptors disagree.
+	//
+	// This check runs on the credentials the submission maps to the input descriptors, before Validate has checked
+	// that mapping, so it must not decide anything Validate would decide differently:
+	//   - it never accepts: when it finds no conflict, or resolving the mapping or the fields fails, it falls
+	//     through to Validate, which reports those cases as before;
+	//   - it only rejects what is rejected anyway: Validate accepts a submission only when it maps exactly the
+	//     credentials that matching selects for the same input descriptors, which agree on shared ids. For such a
+	//     submission this check sees those same credentials and finds no conflict. So a conflict means Validate
+	//     would reject the presentation as well; this check only gives the better error. (Were the two notions of
+	//     agreement ever to differ, this check still sees exactly the credentials Validate accepted, and rejects
+	//     them as a check after Validate would.)
+	if credentials, err := submission.Resolve(envelope); err == nil {
+		if _, err := definition.ResolveConstraintsFields(credentials); errors.Is(err, pe.ErrConflictingFieldValues) {
+			return fmt.Errorf("presentation does not conform to presentation definition (id=%s): %w", definition.Id, err)
+		}
+	}
+	if _, err := submission.Validate(envelope, *definition); err != nil {
 		return fmt.Errorf("presentation submission does not conform to presentation definition (id=%s)", definition.Id)
 	}
 

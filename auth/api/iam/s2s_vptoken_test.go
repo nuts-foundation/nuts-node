@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 	"github.com/nuts-foundation/nuts-node/v6/policy"
 	"go.uber.org/mock/gomock"
 	"net/http"
@@ -502,6 +503,70 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		_ = assertOAuthErrorWithCode(t, err, oauth.ServerError, "policy decision point unavailable")
 		assert.Nil(t, resp)
 	})
+	t.Run("fields sharing an id", func(t *testing.T) {
+		// Two input descriptors, each selecting one credential by its "kind", both declaring the field id "ura".
+		sharedIDDefinition := pe.PresentationDefinition{
+			Id: "shared_id",
+			InputDescriptors: []*pe.InputDescriptor{
+				sharedIDInputDescriptor("organization", "Organization"),
+				sharedIDInputDescriptor("delegation", "Delegation"),
+			},
+		}
+		sharedIDMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: sharedIDDefinition}
+		sharedIDSubmissionJSON := `{
+  "id": "shared_id_submission",
+  "definition_id": "shared_id",
+  "descriptor_map": [
+    {"id": "organization", "path": "$.verifiableCredential[0]", "format": "ldp_vc"},
+    {"id": "delegation", "path": "$.verifiableCredential[1]", "format": "ldp_vc"}
+  ]
+}`
+		credentialWith := func(kind string, ura string) vc.VerifiableCredential {
+			return vc.VerifiableCredential{
+				CredentialSubject: []map[string]any{{"id": subjectDID.String(), "kind": kind, "ura": ura}},
+			}
+		}
+		t.Run("values differ - invalid_request naming the id", func(t *testing.T) {
+			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, credentialWith("Organization", "1"), credentialWith("Delegation", "2"))
+			ctx := newTestClient(t)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: sharedIDMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, sharedIDSubmissionJSON, presentation.Raw())
+
+			var oauthErr oauth.OAuth2Error
+			require.ErrorAs(t, err, &oauthErr)
+			assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+			assert.Equal(t, http.StatusBadRequest, oauthErr.StatusCode())
+			assert.Contains(t, oauthErr.Description, "field id 'ura' in input descriptors 'organization' and 'delegation'")
+			assert.Nil(t, resp)
+		})
+		t.Run("values agree - the value becomes the claim in the access token", func(t *testing.T) {
+			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, credentialWith("Organization", "1"), credentialWith("Delegation", "1"))
+			ctx := newTestClient(t)
+			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: sharedIDMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, sharedIDSubmissionJSON, presentation.Raw())
+
+			require.NoError(t, err)
+			tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
+			var storedToken AccessToken
+			require.NoError(t, ctx.client.accessTokenServerStore().Get(tokenResponse.AccessToken, &storedToken))
+			assert.Equal(t, "1", storedToken.InputDescriptorConstraintIdMap["ura"])
+		})
+	})
+}
+
+// sharedIDInputDescriptor returns an input descriptor that selects a credential by its credentialSubject.kind and
+// declares the field id "ura" on credentialSubject.ura.
+func sharedIDInputDescriptor(id string, kind string) *pe.InputDescriptor {
+	return &pe.InputDescriptor{
+		Id: id,
+		Constraints: &pe.Constraints{Fields: []pe.Field{
+			{Path: []string{"$.credentialSubject.kind"}, Filter: &pe.Filter{Type: "string", Const: to.Ptr(kind)}},
+			{Id: to.Ptr("ura"), Path: []string{"$.credentialSubject.ura"}, Filter: &pe.Filter{Type: "string"}},
+		}},
+	}
 }
 
 func TestWrapper_createAccessToken(t *testing.T) {
@@ -595,5 +660,49 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
 		assert.Equal(t, "Bearer", accessToken.TokenType)
+	})
+}
+
+func TestResolveInputDescriptorValues(t *testing.T) {
+	credentialWith := func(ura string) vc.VerifiableCredential {
+		return vc.VerifiableCredential{CredentialSubject: []map[string]any{{"ura": ura}}}
+	}
+	uraField := func(pattern string) pe.Field {
+		return pe.Field{Id: to.Ptr("ura"), Path: []string{"$.credentialSubject.ura"}, Filter: &pe.Filter{Type: "string", Pattern: to.Ptr(pattern)}}
+	}
+	definitionWith := func(fields ...pe.Field) pe.WalletOwnerMapping {
+		return pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
+			{Id: "first", Constraints: &pe.Constraints{Fields: fields}},
+			{Id: "second", Constraints: &pe.Constraints{Fields: fields}},
+		}}}
+	}
+	t.Run("values agree", func(t *testing.T) {
+		fields, err := resolveInputDescriptorValues(definitionWith(uraField(".*")), map[string]vc.VerifiableCredential{
+			"first": credentialWith("1"), "second": credentialWith("1"),
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]any{"ura": "1"}, fields)
+	})
+	t.Run("values differ - invalid_request", func(t *testing.T) {
+		_, err := resolveInputDescriptorValues(definitionWith(uraField(".*")), map[string]vc.VerifiableCredential{
+			"first": credentialWith("1"), "second": credentialWith("2"),
+		})
+
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+		assert.Equal(t, "fields sharing an id resolve to different values: field id 'ura' in input descriptors 'first' and 'second'", oauthErr.Description)
+		assert.ErrorIs(t, oauthErr.InternalError, pe.ErrConflictingFieldValues)
+	})
+	t.Run("other failure - server_error", func(t *testing.T) {
+		// an invalid regular expression makes resolving the field fail
+		_, err := resolveInputDescriptorValues(definitionWith(uraField("[")), map[string]vc.VerifiableCredential{
+			"first": credentialWith("1"),
+		})
+
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.ServerError, oauthErr.Code)
 	})
 }
