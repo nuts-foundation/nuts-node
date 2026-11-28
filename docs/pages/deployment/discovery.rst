@@ -130,6 +130,10 @@ How the Nuts node uses the ``presentation_definition``:
 
 - ``format`` limits which credential formats match. Registered presentations are always JWT Verifiable Presentations.
 - Constraint fields with an ``id`` are returned in the ``fields`` of search results, keyed by that ``id`` (``auth_server_url`` in the example above).
+- A field ``id`` names one value: constraint fields that share an ``id`` must resolve to the same value (see :ref:`policy-field-ids`).
+  When registering, the node selects credentials that agree on it; a Discovery Server rejects a registration whose values differ, and a Discovery Client does not return such a registration in search results.
+- Field ``id``\ s are checked when the service definition is loaded, with the same rules as policy files (see :ref:`policy-field-id-validation`).
+  A violation stops the node from starting.
 - Registration parameters (given when activating a subject) are put in the ``credentialSubject`` of a ``DiscoveryRegistrationCredential``.
   They are only included in the registration if the Presentation Definition has an input descriptor for that credential;
   a parameter is matched with the path ``$.credentialSubject.<name>``.
