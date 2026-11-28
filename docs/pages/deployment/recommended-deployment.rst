@@ -155,11 +155,58 @@ Process that protects and routes HTTP (specified above) to the Nuts Node.
 Typically a standalone HTTP proxy (e.g. NGINX or HAProxy) that resides in a DMZ and/or an ingress service on a cloud platform.
 It will act as TLS terminator.
 
-The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging calls.
-Refer to the documentation of your proxy on how to set this header.
-
 This process can also act as API Gateway to give external parties access to the Resource Server.
 This API Gateway should then introspect the OAuth2 access token at the Nuts node and perform additional authorization checks (depending on the use case).
+
+.. _client-ip-header:
+
+Client IP address
+-----------------
+
+Behind a proxy, every connection to the Nuts node comes from the proxy.
+The proxy has to pass the address of the original caller in an HTTP header, which is configured with ``http.clientipheader`` (default ``X-Forwarded-For``).
+
+The Nuts node uses the client IP address for:
+
+* the audit log: it is (part of) the ``actor`` of an API call,
+* the HTTP request log (``remote_ip``),
+* the address of other nodes in the network logs and diagnostics (``did:nuts`` gRPC network only).
+
+It is not used to allow, deny or rate-limit requests.
+A wrong client IP address does not give a caller more access, but it does make the audit log unreliable.
+
+To make sure a caller can't choose the address that ends up in the logs, the proxy must overwrite the header, not pass on the value sent by the caller.
+Callers that connect to the Nuts node directly (not through the proxy) can set the header themselves.
+
+How the Nuts node reads the header:
+
+* ``X-Forwarded-For`` (default): the list of addresses is read from right to left. The first address that is not a loopback, link-local or private address is the client IP. If all addresses are of those types, the leftmost is used.
+* Any other header (e.g. ``X-Real-IP``): the value is used as is. Use this if your proxy connects to the Nuts node from a public address, because with ``X-Forwarded-For`` the proxy itself would then be logged as the client.
+* If the header is missing or does not contain an IP address, the address of the connection is used.
+
+Example for NGINX:
+
+.. code-block:: nginx
+
+    location / {
+        proxy_pass http://nuts-node:8080;
+        # Overwrite the header with the address of the caller
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
+Example for HAProxy:
+
+.. code-block:: text
+
+    backend nuts_node
+        # Overwrite the header with the address of the caller
+        http-request set-header X-Forwarded-For %[src]
+        server node nuts-node:8080
+
+To use another header, replace ``X-Forwarded-For`` in the examples (e.g. with ``X-Real-IP``) and set ``http.clientipheader`` to the same name.
+
+If there is another proxy or load balancer in front of this proxy, the outermost one must overwrite the header.
+The ones behind it then add the address they received the connection from to the list (``$proxy_add_x_forwarded_for`` in NGINX, ``option forwardfor`` in HAProxy).
 
 Data storage
 ^^^^^^^^^^^^
@@ -181,7 +228,7 @@ Below is a list of items that should be addressed when running a node in product
 
 - Reverse proxy
    - Use a proxy in front of the node which terminates TLS
-   - Make sure the reverse proxy sets the header configured in ``http.clientipheader`` (default ``X-Forwarded-For``) to log correct IP addresses
+   - Make sure the reverse proxy overwrites the header configured in ``http.clientipheader`` (default ``X-Forwarded-For``) with the address of the caller, to log correct IP addresses. See :ref:`client-ip-header`.
 - Backup Management
    - Make sure data is backed up (data stored in SQL and private keys)
    - Have a tested backup/restore procedure
