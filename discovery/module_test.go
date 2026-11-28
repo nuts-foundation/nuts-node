@@ -456,6 +456,17 @@ func TestModule_Configure(t *testing.T) {
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to parse service definition file 'test/invalid_definition/1.json'")
 	})
+	t.Run("conflicting field ids in presentation definition", func(t *testing.T) {
+		config := Config{
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/conflicting_field_ids",
+			},
+		}
+		err := (&Module{config: config}).Configure(serverConfig)
+		assert.EqualError(t, err, "invalid field ids in presentation definition of service definition 'urn:nuts.nl:usecase:conflictingFieldIDs' in file 'test/conflicting_field_ids/1.json': "+
+			"field id 'organization_name' is used in input descriptor 'id_nuts_care_organization_cred' (presentation definition 'pd_conflicting_field_ids'), input descriptor 'id_other_cred' (presentation definition 'pd_conflicting_field_ids'), "+
+			"with conflicting filter types: 'string' in input descriptor 'id_nuts_care_organization_cred' (presentation definition 'pd_conflicting_field_ids'), 'number' in input descriptor 'id_other_cred' (presentation definition 'pd_conflicting_field_ids')")
+	})
 	t.Run("non-existent directory 1", func(t *testing.T) {
 		config := Config{
 			Definitions: ServiceDefinitionsConfig{

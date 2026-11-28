@@ -1,0 +1,1 @@
+This directory contains an invalid use case definition: 2 fields with the same id declare conflicting filter types.

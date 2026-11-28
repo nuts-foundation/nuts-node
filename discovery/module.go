@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/nuts-foundation/nuts-node/v6/vcr"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"net/url"
@@ -488,6 +489,12 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 		definition, err := ParseServiceDefinition(data)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse service definition file '%s': %w", filePath, err)
+		}
+		// A field id names one value across the presentation definition; a definition whose same-id fields can
+		// never agree is a configuration error, so it stops the node from starting.
+		// Service definitions are only read from this directory, so this covers every definition the node uses.
+		if err := pe.ValidateFieldIDs(definition.PresentationDefinition); err != nil {
+			return nil, fmt.Errorf("invalid field ids in presentation definition of service definition '%s' in file '%s': %w", definition.ID, filePath, err)
 		}
 		if _, exists := result[definition.ID]; exists {
 			return nil, fmt.Errorf("duplicate service definition ID '%s' in file '%s'", definition.ID, filePath)
