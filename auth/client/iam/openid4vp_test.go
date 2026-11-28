@@ -781,6 +781,107 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		assert.Equal(t, "did:test:hcp", capturedSPSelection["delegating_hcp"])
 	})
 
+	t.Run("service-provider credential follows the value of the organization VP (wallets select with the real matcher)", func(t *testing.T) {
+		// The caller selects the organization by name, which only the organization PD declares. The organization VP
+		// then carries the selected organization's ura; the service_provider PD declares "ura" too, so the
+		// service-provider wallet must select the delegation of that organization, although the delegation of the
+		// other organization comes first in its wallet. Both wallets select with the real presentation exchange
+		// matcher (pe.PresentationSubmissionBuilder), so this covers the client and the matcher together.
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		credentialWithSubject := func(id string, subject string) vc.VerifiableCredential {
+			result, err := vc.ParseVerifiableCredential(`{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				"type": ["VerifiableCredential"],
+				"id": "` + id + `",
+				"issuer": "did:test:issuer",
+				"credentialSubject": ` + subject + `,
+				"proof": {"type": "JsonWebSignature2020"}
+			}`)
+			require.NoError(t, err)
+			return *result
+		}
+		orgWallet := []vc.VerifiableCredential{
+			credentialWithSubject("urn:org:a", `{"id": "did:test:hcp", "ura": "1", "name": "Org A"}`),
+			credentialWithSubject("urn:org:b", `{"id": "did:test:hcp", "ura": "2", "name": "Org B"}`),
+		}
+		spWallet := []vc.VerifiableCredential{
+			credentialWithSubject("urn:delegation:1", `{"id": "did:test:sp", "delegatedBy": "1"}`),
+			credentialWithSubject("urn:delegation:2", `{"id": "did:test:sp", "delegatedBy": "2"}`),
+		}
+		orgPD := pe.PresentationDefinition{
+			Id: "org_pd",
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: "id_org_cred",
+				Constraints: &pe.Constraints{Fields: []pe.Field{
+					{Id: to.Ptr("ura"), Path: []string{"$.credentialSubject.ura"}},
+					{Id: to.Ptr("org_name"), Path: []string{"$.credentialSubject.name"}},
+				}},
+			}},
+		}
+		spPD := pe.PresentationDefinition{
+			Id: "sp_pd",
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: "id_sp_delegation",
+				Constraints: &pe.Constraints{Fields: []pe.Field{
+					{Id: to.Ptr("ura"), Path: []string{"$.credentialSubject.delegatedBy"}},
+				}},
+			}},
+		}
+		// matchingWallet builds an (unsigned) VP from the given credentials the way the wallet selects them.
+		var selectedSPCredentials []vc.VerifiableCredential
+		matchingWallet := func(holderDID did.DID, credentials []vc.VerifiableCredential) func(context.Context, []did.DID, map[did.DID][]vc.VerifiableCredential, pe.PresentationDefinition, map[string]string, holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+			return func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, pd pe.PresentationDefinition, selection map[string]string, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				builder := pd.PresentationSubmissionBuilder()
+				builder.AddWallet(holderDID, credentials)
+				builder.SetCredentialSelection(selection)
+				submission, signInstruction, err := builder.Build(vc.JSONLDPresentationProofFormat)
+				if err != nil {
+					return nil, nil, err
+				}
+				if holderDID.Equals(spDID) {
+					selectedSPCredentials = signInstruction.VerifiableCredentials
+				}
+				vpJSON, _ := json.Marshal(vc.VerifiablePresentation{
+					Context:              []ssi.URI{vc.VCContextV1URI()},
+					Type:                 []ssi.URI{vc.VerifiablePresentationTypeV1URI()},
+					Holder:               to.Ptr(holderDID.URI()),
+					VerifiableCredential: signInstruction.VerifiableCredentials,
+					Proof:                []interface{}{map[string]interface{}{"type": "JsonWebSignature2020"}},
+				})
+				presentation, err := vc.ParseVerifiablePresentation(string(vpJSON))
+				if err != nil {
+					return nil, nil, err
+				}
+				return presentation, &submission, nil
+			}
+		}
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    orgPD,
+				pe.WalletOwnerServiceProvider: spPD,
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(), orgPD, gomock.Any(), gomock.Any()).
+			DoAndReturn(matchingWallet(hcpDID, orgWallet))
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(), spPD, gomock.Any(), gomock.Any()).
+			DoAndReturn(matchingWallet(spDID, spWallet))
+
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil,
+			map[string]string{"org_name": "Org B"}, &sp)
+
+		require.NoError(t, err)
+		require.Len(t, selectedSPCredentials, 1)
+		assert.Equal(t, "urn:delegation:2", selectedSPCredentials[0].ID.String())
+	})
+
 	t.Run("captured values whose id the service_provider PD does not declare do not break the request", func(t *testing.T) {
 		// The organization PD may declare ids the service_provider PD does not have. Their captured values are
 		// carried over to the service-provider wallet like any other captured value (numbers as text), and the

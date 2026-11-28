@@ -552,10 +552,10 @@ components:
           type: object
           description: |
             Optional key-value mapping for credential selection when the wallet contains multiple
-            credentials matching a single input descriptor. Each key is a field ID declared in the
-            input descriptor constraints of the Presentation Definition. The value narrows the
-            match to credentials where that field equals the given value (strings, numbers and
-            booleans are compared as text).
+            credentials matching an input descriptor. Each key is a field ID declared in the
+            input descriptor constraints of the Presentation Definition. An input descriptor that
+            declares a key only accepts credentials where that field equals the given value
+            (strings, numbers and booleans are compared as text).
 
             Keys are checked against all Presentation Definitions of the request together: in the
             two-VP flow (service_provider_subject_id) a key only needs to be declared by either the
@@ -563,11 +563,21 @@ components:
             Definition that does not declare a key ignores it. A key that no Presentation Definition
             of the request declares results in a 400 invalid_request error naming every unknown key.
 
-            The selection must narrow to exactly one credential per input descriptor.
-            Zero matches or multiple matches will result in an error.
+            A field ID names one value: input descriptors that declare the same field ID get
+            credentials that agree on its value, in the two-VP flow across both presentations. So
+            selecting a credential also selects the credentials that refer to it (e.g. the
+            delegation for the selected organization) without selecting those too.
 
-            When omitted and multiple credentials match an input descriptor,
-            the first matching credential is used.
+            When no credential has the selected value, the input descriptor gets no credential, which
+            fails the request unless the submission requirements of the Presentation Definition
+            allow it. When the credentials left for an input descriptor that declares a key still
+            differ in the values of its field IDs, the request fails because multiple credentials
+            match. Credentials that agree on all field IDs of the input descriptor are equivalent:
+            the first one is used.
+
+            Without a selection (and for input descriptors that declare no key), the first matching
+            credential is used, as far as it agrees with the credentials selected for the other
+            input descriptors.
           additionalProperties:
             type: string
           example:

@@ -53,7 +53,10 @@ type PresentationSubmissionBuilder struct {
 	holders                []did.DID
 	presentationDefinition PresentationDefinition
 	wallets                [][]vc.VerifiableCredential
-	credentialSelector     CredentialSelector
+	credentialSelection    map[string]string
+	// submittedCredentials is only set by PresentationSubmission.Validate: it maps input descriptor ids to the
+	// credentials the submission being validated maps them to (see restrictToSubmitted).
+	submittedCredentials map[string]vc.VerifiableCredential
 }
 
 // PresentationSubmissionBuilder returns a new PresentationSubmissionBuilder.
@@ -64,10 +67,10 @@ func (presentationDefinition PresentationDefinition) PresentationSubmissionBuild
 	}
 }
 
-// SetCredentialSelector configures a custom CredentialSelector for picking credentials
-// when multiple match an input descriptor. If not set, FirstMatchSelector is used.
-func (b *PresentationSubmissionBuilder) SetCredentialSelector(selector CredentialSelector) *PresentationSubmissionBuilder {
-	b.credentialSelector = selector
+// SetCredentialSelection sets the credential selection (field id to value) every wallet is matched with,
+// see PresentationDefinition.MatchWithSelection. Without it, wallets are matched with Match.
+func (b *PresentationSubmissionBuilder) SetCredentialSelection(selection map[string]string) *PresentationSubmissionBuilder {
+	b.credentialSelection = selection
 	return b
 }
 
@@ -116,13 +119,9 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	var inputDescriptorMappingObjects []InputDescriptorMappingObject
 	var selectedDID *did.DID
 
-	selector := b.credentialSelector
-	if selector == nil {
-		selector = FirstMatchSelector
-	}
-
 	for i, walletVCs := range b.wallets {
-		vcs, mappingObjects, err := b.presentationDefinition.MatchWithSelector(walletVCs, selector)
+		// Each wallet is matched on its own: values chosen while matching one wallet do not carry over to the next.
+		vcs, mappingObjects, err := b.presentationDefinition.match(walletVCs, b.credentialSelection, b.submittedCredentials)
 		if err == nil {
 			selectedVCs = vcs
 			inputDescriptorMappingObjects = mappingObjects
@@ -256,7 +255,21 @@ func (s PresentationSubmission) Validate(envelope Envelope, definition Presentat
 		return map[string]vc.VerifiableCredential{}, nil
 	}
 
+	// The presentation is matched against the definition again, with the same pipeline as when building one
+	// (per presentation, constraints and format, agreement on shared field ids, submission requirements), but every
+	// input descriptor the submission maps may only select the credential the submission maps it to. Then the
+	// outcome is compared with the submission (same input descriptors, same credentials).
+	//
+	// Why restricting is safe: it can only narrow what matching may select, never widen it. So everything accepted
+	// still (a) matches the constraints and format of its input descriptor, (b) agrees on shared field ids,
+	// (c) satisfies the submission requirements, (d) comes from a single presentation, and (e) equals the
+	// submitted mapping (the comparison below). Input descriptors the submission does not map get no credential,
+	// so omitting a required input descriptor is rejected by the submission requirements (or, without them,
+	// because every input descriptor needs a credential). What is given up is only that the holder chose each
+	// input descriptor's first match, which was never a security property: a holder that agrees on shared field
+	// ids, or follows a credential selection, may need another match than the first.
 	submissionBuilder := definition.PresentationSubmissionBuilder()
+	submissionBuilder.submittedCredentials = actualCredentials
 	// Create a new presentation submission: the submission being validated should have the same input descriptor mapping.
 	for _, presentation := range envelope.Presentations {
 		signer, err := credential.PresentationSigner(presentation)
