@@ -245,6 +245,23 @@ For an embargoed release the commit is not publicly readable until disclosure; u
 It does not prove that the source code at that commit is free of defects or malicious changes.
 Review of the source code, and of who may change it, remains the basis of trust.
 
+.. _vulnerability-scanning:
+
+Scanning images for vulnerabilities
+***********************************
+
+An image scanner reports a vulnerability when the image contains an affected version of a library, also when the Nuts node does not use the vulnerable part of it.
+For vulnerabilities that were analyzed and do not affect the Nuts node, the repository contains a `VEX <https://openvex.dev/>`_ document: `.vex/nuts-node.openvex.json <https://github.com/nuts-foundation/nuts-node/blob/master/.vex/nuts-node.openvex.json>`_.
+Each statement in it names the vulnerability and explains why the Nuts node is not affected.
+
+Scanners that support OpenVEX can use the document to leave these vulnerabilities out of their report.
+Use the document from the branch of the release you run (e.g. ``V6.2``).
+For example, with `Trivy <https://trivy.dev/>`_:
+
+.. code-block:: shell
+
+  trivy image --vex nuts-node.openvex.json nutsfoundation/nuts-node:latest
+
 Development image
 *****************
 

@@ -1,0 +1,49 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/nuts-foundation/nuts-node/blob/master/.vex/nuts-node.openvex.json",
+  "author": "Nuts Foundation",
+  "timestamp": "2026-11-17T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-118651",
+        "aliases": ["GO-2026-6875", "GHSA-99jh-6h7p-pp36"]
+      },
+      "timestamp": "2026-11-17T00:00:00Z",
+      "products": [
+        {
+          "@id": "pkg:golang/github.com/nuts-foundation/nuts-node/v6",
+          "subcomponents": [{"@id": "pkg:golang/github.com/labstack/echo/v4"}]
+        },
+        {
+          "@id": "pkg:oci/nuts-node?repository_url=index.docker.io%2Fnutsfoundation%2Fnuts-node",
+          "subcomponents": [{"@id": "pkg:golang/github.com/labstack/echo/v4"}]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The vulnerability is in echo's reverse proxy middleware (middleware.Proxy), which the Nuts node does not use. The node also always sets Echo#IPExtractor (http/engine.go), the workaround named in the advisory."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-118653",
+        "aliases": ["GO-2026-6872", "GHSA-246p-cpwv-v3jq"]
+      },
+      "timestamp": "2026-11-17T00:00:00Z",
+      "products": [
+        {
+          "@id": "pkg:golang/github.com/nuts-foundation/nuts-node/v6",
+          "subcomponents": [{"@id": "pkg:golang/github.com/labstack/echo/v4"}]
+        },
+        {
+          "@id": "pkg:oci/nuts-node?repository_url=index.docker.io%2Fnutsfoundation%2Fnuts-node",
+          "subcomponents": [{"@id": "pkg:golang/github.com/labstack/echo/v4"}]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "The vulnerability lets a caller get a new rate limit by sending a spoofed X-Forwarded-For header, when Echo#IPExtractor is not set. The Nuts node always sets Echo#IPExtractor (http/engine.go), and its rate limiter (http/ratelimiter.go) has one shared limit that does not depend on the caller's IP address."
+    }
+  ]
+}

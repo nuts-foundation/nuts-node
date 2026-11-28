@@ -44,7 +44,13 @@ jobs:
           go-version-file: 'go.mod' # test against go.mod since 'stable' is not valid for older branches
           go-package: ./...
           repo-checkout: false # will auto-checkout the default branch if left on true
-          output-format: 'text' # other values will always result in successful completion of the action, we need it fail on vulnerabilities
+          # JSON output never fails the action; the next step decides, so findings covered by a VEX statement can be skipped
+          output-format: 'json'
+          output-file: 'govulncheck.json'
+
+      - name: Fail on vulnerabilities not covered by a VEX statement
+        # the script and the VEX document are taken from the branch that is checked
+        run: .github/scripts/govulncheck-vex.sh govulncheck.json .vex/nuts-node.openvex.json
 
       - name: notify slack
         # this uses our own 'Github notifications' app in slack
