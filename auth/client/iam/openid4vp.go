@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/v6/http/client"
@@ -290,6 +291,9 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 		return nil, err
 	}
 	presentationDefinition := &resolved.PresentationDefinition
+	if err := rejectUnknownSelectionKeys(credentialSelection, *presentationDefinition); err != nil {
+		return nil, err
+	}
 
 	params := holder.BuildParams{
 		Audience:   authServerURL,
@@ -344,6 +348,10 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, organ
 			Code:        oauth.InvalidScope,
 			Description: fmt.Sprintf("no service_provider presentation definition for scope %q", profile.CredentialProfileScope),
 		}
+	}
+	// The caller's keys apply to the request as a whole: a key only needs to be declared by one of the two PDs.
+	if err := rejectUnknownSelectionKeys(credentialSelection, orgPD, spPD); err != nil {
+		return nil, err
 	}
 	params := holder.BuildParams{
 		Audience:   authServerURL,
@@ -450,10 +458,28 @@ func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subject
 	return c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
 }
 
+// rejectUnknownSelectionKeys returns an invalid_request error naming every credential_selection key that none of the
+// given presentation definitions (all PDs of the token request) declares as a field id. Wallets skip keys a PD does
+// not declare, so without this check a mistyped key would silently select nothing. It must run before any VP is
+// built, so a bad request does not touch the wallet.
+func rejectUnknownSelectionKeys(credentialSelection map[string]string, presentationDefinitions ...pe.PresentationDefinition) error {
+	unknown := pe.UnknownSelectionKeys(credentialSelection, presentationDefinitions...)
+	if len(unknown) == 0 {
+		return nil
+	}
+	return oauth.OAuth2Error{
+		Code:        oauth.InvalidRequest,
+		Description: fmt.Sprintf("credential_selection contains keys that no presentation definition for the requested scope declares as field id: %s", strings.Join(unknown, ", ")),
+	}
+}
+
 // applyCapturedFieldsToSelection returns a fresh selection map containing every entry from selection
-// plus any string-valued entry from captured whose key is not already present. Non-string captured values
-// are skipped (selection is map[string]string). The caller's selection map is never mutated, so the
-// captured values cannot leak back through any retained reference.
+// plus every scalar entry from captured whose key is not already present (the caller's keys win).
+// Strings, numbers and booleans are carried over as text (see pe.ScalarAsText), the same form in which
+// credential_selection values are compared; arrays and objects cannot be compared that way and are skipped.
+// Captured keys the service_provider PD does not declare are carried over as well: the wallet skips them.
+// The caller's selection map is never mutated, so the captured values cannot leak back through any retained
+// reference.
 func applyCapturedFieldsToSelection(selection map[string]string, captured map[string]any) map[string]string {
 	merged := make(map[string]string, len(selection)+len(captured))
 	for k, v := range selection {
@@ -463,7 +489,7 @@ func applyCapturedFieldsToSelection(selection map[string]string, captured map[st
 		if _, exists := merged[k]; exists {
 			continue
 		}
-		s, ok := v.(string)
+		s, ok := pe.ScalarAsText(v)
 		if !ok {
 			continue
 		}

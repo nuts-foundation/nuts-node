@@ -966,6 +966,31 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		assert.Equal(t, err, pe.ErrNoCredentials)
 		assert.Equal(t, http.StatusPreconditionFailed, statusCodeFrom(err))
 	})
+	t.Run("error - invalid_request from the IAM client (e.g. unknown credential_selection key) results in HTTP 400", func(t *testing.T) {
+		// Wiring test through the HTTP layer: the IAM client rejects unknown credential_selection keys with an
+		// OAuth2 invalid_request error; the API must answer that with 400 Bad Request, not 500.
+		ctx := newTestClient(t)
+		server := echo.New()
+		server.HTTPErrorHandler = core.CreateHTTPErrorHandler()
+		ctx.client.Routes(server)
+		selection := map[string]string{"typo": "x"}
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(gomock.Any(), holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, selection, nil).
+			Return(nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "credential_selection contains keys that no presentation definition for the requested scope declares as field id: typo"})
+		requestBody, _ := json.Marshal(RequestServiceAccessTokenJSONRequestBody{
+			AuthorizationServer: verifierURL.String(),
+			Scope:               "first second",
+			CredentialSelection: &selection,
+		})
+		httpRequest := httptest.NewRequest(http.MethodPost, "/internal/auth/v2/"+holderSubjectID+"/request-service-access-token", bytes.NewReader(requestBody))
+		httpRequest.Header.Set("Content-Type", "application/json")
+		httpRequest.Header.Set("Cache-Control", "no-cache")
+		recorder := httptest.NewRecorder()
+
+		server.ServeHTTP(recorder, httpRequest)
+
+		assert.Equal(t, http.StatusBadRequest, recorder.Code)
+		assert.Contains(t, recorder.Body.String(), "typo")
+	})
 	t.Run("broken cache", func(t *testing.T) {
 		ctx := newTestClient(t)
 		mockStorage := storage.NewMockEngine(ctx.ctrl)

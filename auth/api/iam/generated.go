@@ -161,9 +161,16 @@ type ServiceAccessTokenRequest struct {
 	AuthorizationServer string `json:"authorization_server"`
 
 	// CredentialSelection Optional key-value mapping for credential selection when the wallet contains multiple
-	// credentials matching a single input descriptor. Each key must match a field ID declared
-	// in the Presentation Definition's input descriptor constraints. The value narrows the
-	// match to credentials where that field equals the given value.
+	// credentials matching a single input descriptor. Each key is a field ID declared in the
+	// input descriptor constraints of the Presentation Definition. The value narrows the
+	// match to credentials where that field equals the given value (strings, numbers and
+	// booleans are compared as text).
+	//
+	// Keys are checked against all Presentation Definitions of the request together: in the
+	// two-VP flow (service_provider_subject_id) a key only needs to be declared by either the
+	// organization or the service_provider Presentation Definition, and a Presentation
+	// Definition that does not declare a key ignores it. A key that no Presentation Definition
+	// of the request declares results in a 400 invalid_request error naming every unknown key.
 	//
 	// The selection must narrow to exactly one credential per input descriptor.
 	// Zero matches or multiple matches will result in an error.
